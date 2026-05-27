@@ -118,6 +118,7 @@
         .diff-btn.hell { background: #8b1a1a; }
         .diff-btn.endless { background: #6a0dad; }
         .diff-btn.custom { background: #2a5f6b; }
+        .diff-btn.versus { background: #4b4f8f; }
         .diff-btn:hover, .custom-confirm:hover { filter: brightness(1.2); }
         .modal-close-x {
             position: absolute; top: 12px; right: 16px; font-size: 24px; color: #aaa;
@@ -147,7 +148,7 @@
 
         <div class="control-panel">
             <div class="player-zone" id="blueZone">
-                <h3 style="color:#5b9cf5;">🔵 你 (蓝方)</h3>
+                <h3 id="blueTitle" style="color:#5b9cf5;">🔵 你 (蓝方)</h3>
                 <div class="info-row">
                     <span class="gold-display" id="blueGold">💰 200</span>
                     <span class="income-display" id="blueIncome">⏳ 400 10.0s</span>
@@ -156,7 +157,7 @@
                 <div class="unit-row" id="blueUnits"></div>
             </div>
             <div class="player-zone" id="redZone" style="opacity:0.9;">
-                <h3 style="color:#f55b5b;">🔴 AI (红方)</h3>
+                <h3 id="redTitle" style="color:#f55b5b;">🔴 AI (红方)</h3>
                 <div class="info-row">
                     <span class="gold-display" id="redGold">💰 200</span>
                     <span class="income-display" id="redIncome">⏳ 400 10.0s</span>
@@ -173,7 +174,7 @@
 
 <div class="modal-overlay" id="helpModal"><div class="modal-content"><span class="modal-close-x" id="closeHelpX">&times;</span><h2>📖 游戏说明</h2><pre id="helpText"></pre></div></div>
 <div class="modal-overlay" id="logModal"><div class="modal-content"><span class="modal-close-x" id="closeLogX">&times;</span><h2>📜 更新日志</h2><pre id="logText"></pre></div></div>
-<div class="modal-overlay" id="diffModal"><div class="modal-content"><span class="modal-close-x" id="closeDiffX">&times;</span><h2>⚙️ 选择模式</h2><div style="text-align:center;margin:20px 0;"><button class="diff-btn easy" data-diff="easy">😊 简单</button><button class="diff-btn normal" data-diff="normal">⚔️ 普通</button><button class="diff-btn hell" data-diff="hell">💀 地狱</button><button class="diff-btn endless" data-diff="endless">♾️ 无尽</button><button class="diff-btn custom" data-diff="custom">🔧 自定义</button></div><p style="color:#aaa;font-size:14px;text-align:center;">简单/普通/地狱：AI策略不同<br>无尽：普通难度起，每轮AI属性+8%，每轮重置金币<br>自定义：自由设定AI属性与初始金币</p></div></div>
+<div class="modal-overlay" id="diffModal"><div class="modal-content"><span class="modal-close-x" id="closeDiffX">&times;</span><h2>⚙️ 选择模式</h2><div style="text-align:center;margin:20px 0;"><button class="diff-btn easy" data-diff="easy">😊 简单</button><button class="diff-btn normal" data-diff="normal">⚔️ 普通</button><button class="diff-btn hell" data-diff="hell">💀 地狱</button><button class="diff-btn endless" data-diff="endless">♾️ 无尽</button><button class="diff-btn custom" data-diff="custom">🔧 自定义</button><button class="diff-btn versus" data-diff="localVersus">🎮 本地双人</button></div><p style="color:#aaa;font-size:14px;text-align:center;">简单/普通/地狱：AI策略不同<br>无尽：普通难度起，每轮AI属性+8%，每轮重置金币<br>自定义：自由设定AI属性与初始金币<br>本地双人：蓝红双方都由本地玩家控制</p></div></div>
 <div class="modal-overlay" id="customModal"><div class="modal-content"><span class="modal-close-x" id="closeCustomX">&times;</span><h2>🔧 自定义AI</h2><div class="custom-row"><label>攻击力倍率</label><input id="customAtk" type="number" value="1.0" step="0.1" min="0.1"></div><div class="custom-row"><label>生命值倍率</label><input id="customHp" type="number" value="1.0" step="0.1" min="0.1"></div><div class="custom-row"><label>AI初始金币</label><input id="customGold" type="number" value="200" step="10" min="0"></div><button class="custom-confirm" id="customConfirm">开始游戏</button></div></div>
 
 <audio id="bgm" src="bgm.mp3" loop></audio>
@@ -264,6 +265,8 @@
             blueGoldTimer: GOLD_INTERVAL, redGoldTimer: GOLD_INTERVAL,
             blueBaseIncome: BASE_GOLD_INCOME, redBaseIncome: BASE_GOLD_INCOME,
             elapsedTime: 0, started: false,
+            matchType: 'single',
+            controllers: { blue: 'local', red: 'ai' },
             mode: 'normal', wave: 1, waveMessageTimer: 0,
             aiStatMult: 1.0, customSettings: null
         };
@@ -341,6 +344,13 @@
         else gameState.redBaseIncome += bonus;
         updateAllUI();
         return true;
+    }
+
+    function submitCommand(command) {
+        if (!command || command.type !== 'buyUnit') return false;
+        if (command.side !== 'blue' && command.side !== 'red') return false;
+        if (gameState.controllers[command.side] !== 'local') return false;
+        return tryBuyUnit(command.side, command.unitId);
     }
 
     function checkGameOver() {
@@ -746,7 +756,7 @@
     function updateGame(deltaTime) {
         if (gameState.gameOver || isPaused || !gameState.started) return;
         updateEconomy(deltaTime);
-        aiUpdate(deltaTime);
+        if (gameState.controllers.red === 'ai') aiUpdate(deltaTime);
         updateBaseAttacks(deltaTime);
         updateUnitTimers(deltaTime);
         placeEngineerTurrets();
@@ -839,7 +849,10 @@
         if (gameState.gameOver) {
             ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,canvas.width,GAME_HEIGHT);
             ctx.fillStyle='#ffd966'; ctx.font='bold 46px "Segoe UI"'; ctx.textAlign='center';
-            ctx.fillText(gameState.winner==='blue'?'你赢了！':'AI赢了', canvas.width/2, GAME_HEIGHT/2);
+            const winnerText = gameState.matchType==='localVersus'
+                ? (gameState.winner==='blue' ? '蓝方赢了！' : '红方赢了！')
+                : (gameState.winner==='blue' ? '你赢了！' : 'AI赢了');
+            ctx.fillText(winnerText, canvas.width/2, GAME_HEIGHT/2);
             if (gameState.mode==='endless' && gameState.winner==='red') {
                 ctx.font='bold 24px "Segoe UI"';
                 ctx.fillText(`你坚持到了第 ${gameState.wave} 轮`, canvas.width/2, GAME_HEIGHT/2+50);
@@ -882,26 +895,44 @@
     });
     window.addEventListener('mouseup',()=>{minimapDrag=false;});
 
+    function createUnitCard(unit, side) {
+        const card=document.createElement('div'); card.className='unit-card'; card.dataset.unitId=unit.id; card.dataset.side=side;
+        card.innerHTML=`<span class="unit-icon">${unit.icon}</span><span class="unit-name">${unit.name}</span><span class="unit-cost">💰${unit.cost}</span>`;
+        const startBuy=(e)=>{
+            e.preventDefault();
+            const command = { type: 'buyUnit', side, unitId: unit.id };
+            if(submitCommand(command)){
+                if(holdTimer)clearInterval(holdTimer);
+                holdUnitId=unit.id;
+                holdTimer=setInterval(()=>{
+                    if(!submitCommand({ type: 'buyUnit', side, unitId: holdUnitId })){
+                        clearInterval(holdTimer); holdTimer=null;
+                    }
+                },150);
+            }
+        };
+        const stopBuy=()=>{ if(holdTimer){clearInterval(holdTimer);holdTimer=null;} };
+        card.addEventListener('mousedown',startBuy); card.addEventListener('touchstart',startBuy,{passive:false});
+        card.addEventListener('mouseleave',stopBuy); card.addEventListener('mouseup',stopBuy);
+        card.addEventListener('touchend',stopBuy); card.addEventListener('touchcancel',stopBuy);
+        card.addEventListener('mouseenter',(e)=>showTooltip(e,unit)); card.addEventListener('mouseleave',hideTooltip);
+        return card;
+    }
+
+    function refreshControllerUI() {
+        document.getElementById('blueTitle').textContent = gameState.matchType==='localVersus' ? '🔵 玩家1 (蓝方)' : '🔵 你 (蓝方)';
+        document.getElementById('redTitle').textContent = gameState.matchType==='localVersus' ? '🔴 玩家2 (红方)' : '🔴 AI (红方)';
+        document.querySelectorAll('#blueUnits .unit-card, #redUnits .unit-card').forEach(card=>{
+            card.classList.toggle('ai-card', gameState.controllers[card.dataset.side] !== 'local');
+        });
+    }
+
     function createUnitCards() {
         const blueC=document.getElementById('blueUnits'); blueC.innerHTML='';
-        UNITS.forEach(unit=>{
-            const card=document.createElement('div'); card.className='unit-card'; card.dataset.unitId=unit.id;
-            card.innerHTML=`<span class="unit-icon">${unit.icon}</span><span class="unit-name">${unit.name}</span><span class="unit-cost">💰${unit.cost}</span>`;
-            const startBuy=(e)=>{ e.preventDefault(); if(gameState.gameOver||isPaused||!gameState.started)return; if(tryBuyUnit('blue',unit.id)){ if(holdTimer)clearInterval(holdTimer); holdUnitId=unit.id; holdTimer=setInterval(()=>{ if(!tryBuyUnit('blue',holdUnitId)){clearInterval(holdTimer);holdTimer=null;} },150); } };
-            const stopBuy=()=>{ if(holdTimer){clearInterval(holdTimer);holdTimer=null;} };
-            card.addEventListener('mousedown',startBuy); card.addEventListener('touchstart',startBuy,{passive:false});
-            card.addEventListener('mouseleave',stopBuy); card.addEventListener('mouseup',stopBuy);
-            card.addEventListener('touchend',stopBuy); card.addEventListener('touchcancel',stopBuy);
-            card.addEventListener('mouseenter',(e)=>showTooltip(e,unit)); card.addEventListener('mouseleave',hideTooltip);
-            blueC.appendChild(card);
-        });
+        UNITS.forEach(unit=>blueC.appendChild(createUnitCard(unit,'blue')));
         const redC=document.getElementById('redUnits'); redC.innerHTML='';
-        UNITS.forEach(unit=>{
-            const card=document.createElement('div'); card.className='unit-card ai-card';
-            card.innerHTML=`<span class="unit-icon">${unit.icon}</span><span class="unit-name">${unit.name}</span><span class="unit-cost">💰${unit.cost}</span>`;
-            card.addEventListener('mouseenter',(e)=>showTooltip(e,unit)); card.addEventListener('mouseleave',hideTooltip);
-            redC.appendChild(card);
-        });
+        UNITS.forEach(unit=>redC.appendChild(createUnitCard(unit,'red')));
+        refreshControllerUI();
     }
     window.addEventListener('mouseup',()=>{ if(holdTimer){clearInterval(holdTimer);holdTimer=null;} });
     window.addEventListener('touchend',()=>{ if(holdTimer){clearInterval(holdTimer);holdTimer=null;} });
@@ -949,23 +980,30 @@
             const cfg=getUnitConfig(card.dataset.unitId);
             card.classList.toggle('cant-afford', cfg && gameState.blue.gold<cfg.cost);
         });
+        document.querySelectorAll('#redUnits .unit-card').forEach(card=>{
+            const cfg=getUnitConfig(card.dataset.unitId);
+            card.classList.toggle('cant-afford', cfg && gameState.red.gold<cfg.cost);
+        });
         const t = Math.floor(gameState.elapsedTime);
         document.getElementById('timerDisplay').textContent = `⏱ ${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
     }
 
     function initGame(diff, custom=null) {
         currentDifficulty = diff;
+        gameState.matchType = diff==='localVersus' ? 'localVersus' : 'single';
+        gameState.controllers = gameState.matchType==='localVersus' ? { blue: 'local', red: 'local' } : { blue: 'local', red: 'ai' };
         gameState.mode = diff==='endless' ? 'endless' : 'normal';
         gameState.wave = 1; gameState.aiStatMult = 1.0; gameState.waveMessageTimer = 0;
         resetRoundEconomy();
-        gameState.customSettings = custom;
+        gameState.customSettings = gameState.matchType==='localVersus' ? null : custom;
         gameState.blue = createPlayerState('blue');
-        gameState.red = createPlayerState('red', custom?custom.startGold:200);
+        gameState.red = createPlayerState('red', gameState.customSettings?gameState.customSettings.startGold:200);
         gameState.units = []; gameState.gameOver = false; gameState.winner = null;
         gameState.lastTimestamp = 0; gameState.started = true;
         cameraX = BLUE_BASE.x-50; isPaused = false; speedMultiplier = 1; aiTargetArmor = null;
         document.getElementById('pauseBtn').textContent = '⏯️'; document.getElementById('pauseBtn').classList.remove('active');
         document.getElementById('speedBtn').classList.remove('active');
+        refreshControllerUI();
         updateWaveDisplay(); updateAllUI();
     }
 
@@ -1155,6 +1193,9 @@ AI 单位生命值和攻击力提升到 1.2 倍，同时拥有更强的出兵压
 
 自定义：
 可以手动设置 AI 攻击倍率、生命倍率和初始金币。
+
+本地双人：
+蓝方和红方都由本地玩家控制，红方 AI 不会自动出兵。
 
 
 七、实战建议

@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0, shrink-to-fit=yes">
+    <title>米拉奇战记 v3.2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #1a1e2b 0%, #2a2f3f 100%);
+            min-height: 100vh; display: flex; justify-content: center; align-items: center;
+            font-family: 'Segoe UI', 'Noto Sans', system-ui, sans-serif;
+            padding: 20px; margin: 0; user-select: none;
+        }
+        .game-wrapper {
+            background: #1e2230; border-radius: 28px; padding: 18px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; align-items: center;
+        }
+        canvas { display: block; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); width: 100%; height: auto; max-width: 1000px; }
+        .control-panel { width: 100%; display: flex; gap: 20px; margin-top: 14px; justify-content: center; flex-wrap: wrap; }
+        .player-zone {
+            flex: 1; min-width: 280px; background: rgba(20,22,30,0.85);
+            backdrop-filter: blur(10px); border-radius: 18px; padding: 12px 16px;
+            border: 1px solid rgba(255,255,255,0.12);
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .player-zone h3 { color: #ddd; font-size: 16px; text-align: center; margin-bottom: 2px; }
+        .info-row { display: flex; justify-content: center; gap: 16px; align-items: center; flex-wrap: wrap; }
+        .gold-display { background: #4a3f1e; color: #ffd966; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 15px; }
+        .income-display { background: #2a3f4a; color: #8dd; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+        .base-hp-display { background: #3a2030; color: #ff9090; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 13px; }
+        .unit-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .unit-card {
+            display: flex; flex-direction: column; align-items: center;
+            background: #2a2e3c; border-radius: 14px; padding: 10px 12px;
+            cursor: pointer; transition: all 0.15s ease; border: 2px solid transparent;
+            min-width: 66px; color: #eee; font-weight: bold;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3); position: relative;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .unit-card:active { transform: translateY(1px); }
+        .unit-card.cant-afford { opacity: 0.45; filter: grayscale(0.4); cursor: not-allowed; }
+        .ai-card { pointer-events: none; cursor: default; opacity: 0.7; }
+        .unit-icon { font-size: 26px; margin-bottom: 3px; }
+        .unit-name { font-size: 12px; font-weight: 700; }
+        .unit-cost { font-size: 11px; color: #ffbb2e; }
+        .restart-btn {
+            background: #3a4252; border: none; color: #fff; font-weight: bold;
+            font-size: 15px; padding: 10px 28px; border-radius: 28px;
+            cursor: pointer; margin-top: 12px; align-self: center;
+            box-shadow: 0 4px 0 #2a2f3b; letter-spacing: 1px;
+        }
+        .restart-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #2a2f3b; }
+        .legend { color: #888; font-size: 12px; text-align: center; margin-top: 6px; }
+        .tooltip {
+            position: fixed; z-index: 999; pointer-events: none;
+            background: #1e2230dd; color: #eee; border: 1px solid #ffbb2e;
+            border-radius: 12px; padding: 10px 14px; font-size: 13px;
+            line-height: 1.5; backdrop-filter: blur(6px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+            max-width: 230px;
+        }
+        .tooltip .stat { display: flex; justify-content: space-between; gap: 20px; }
+        .tooltip .label { color: #aaa; }
+        .tooltip .value { color: #fff; font-weight: bold; }
+        .tooltip .counter { margin-top: 6px; font-style: italic; }
+        .tooltip .strong { color: #ffaa00; }
+        .tooltip .weak { color: #88aaff; }
+        .tooltip .slogan { margin-top: 8px; font-style: italic; color: #ffbb2e; border-top: 1px solid #444; padding-top: 4px; }
+
+        .top-buttons {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 6px; gap: 8px;
+        }
+        .icon-btn {
+            background: #2a2e3c; border: none; color: #ddd; font-size: 18px;
+            width: 40px; height: 40px; border-radius: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+            transition: background 0.2s;
+        }
+        .icon-btn:hover { background: #3a4252; }
+        .icon-btn.active { color: #ffbb2e; background: #4a3f1e; }
+
+        .minimap-container {
+            flex: 1; margin: 0 10px; display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        #minimapCanvas {
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
+            background: #151820; cursor: pointer; width: 100%; max-width: 240px; height: 52px;
+        }
+        #waveDisplay { color: #ffbb2e; font-weight: bold; font-size: 15px; white-space: nowrap; }
+        #timerDisplay { color: #ccc; font-weight: bold; font-size: 15px; white-space: nowrap; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: flex; align-items: center;
+            justify-content: center; z-index: 1000; opacity: 0; pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .modal-overlay.show { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            background: #1e2230; border: 1px solid #ffbb2e; border-radius: 18px;
+            padding: 24px; max-width: 650px; width: 90%; max-height: 80vh;
+            overflow-y: auto; color: #ddd; box-shadow: 0 15px 40px rgba(0,0,0,0.7);
+            position: relative;
+        }
+        .modal-content h2 { color: #ffbb2e; margin-bottom: 14px; text-align: center; }
+        .modal-content pre { white-space: pre-wrap; font-size: 13px; line-height: 1.6; background: #151820; padding: 12px; border-radius: 12px; color: #ccc; }
+        .diff-btn, .custom-confirm {
+            background: #3a4252; border: none; color: white; padding: 8px 24px;
+            border-radius: 20px; font-weight: bold; cursor: pointer;
+            margin: 10px 5px 0;
+        }
+        .diff-btn.easy { background: #2a6b3a; }
+        .diff-btn.normal { background: #b8860b; }
+        .diff-btn.hell { background: #8b1a1a; }
+        .diff-btn.endless { background: #6a0dad; }
+        .diff-btn.custom { background: #2a5f6b; }
+        .diff-btn:hover, .custom-confirm:hover { filter: brightness(1.2); }
+        .modal-close-x {
+            position: absolute; top: 12px; right: 16px; font-size: 24px; color: #aaa;
+            cursor: pointer; background: none; border: none;
+        }
+        .custom-row { display: flex; justify-content: space-between; margin: 8px 0; }
+        .custom-row input { width: 80px; background: #2a2e3c; border: 1px solid #444; color: #fff; padding: 4px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+<div style="display: flex; flex-direction: column; align-items: center;">
+    <div class="game-wrapper">
+        <div class="top-buttons">
+            <button class="icon-btn" id="musicBtn" title="音乐 开/关">🎵</button>
+            <button class="icon-btn" id="pauseBtn" title="暂停 / 继续 (空格)">⏯️</button>
+            <button class="icon-btn" id="speedBtn" title="2倍速">⏩</button>
+            <div class="minimap-container">
+                <canvas id="minimapCanvas" width="240" height="52"></canvas>
+                <span id="waveDisplay" style="display:none;">🌊 第1轮</span>
+                <span id="timerDisplay">⏱ 00:00</span>
+            </div>
+            <button class="icon-btn" id="helpBtn" title="游戏说明">❓</button>
+            <button class="icon-btn" id="logBtn" title="开发日志">📋</button>
+        </div>
+
+        <canvas id="gameCanvas" width="1000" height="460"></canvas>
+
+        <div class="control-panel">
+            <div class="player-zone" id="blueZone">
+                <h3 style="color:#5b9cf5;">🔵 你 (蓝方)</h3>
+                <div class="info-row">
+                    <span class="gold-display" id="blueGold">💰 200</span>
+                    <span class="income-display" id="blueIncome">⏳ 400 10.0s</span>
+                    <span class="base-hp-display" id="blueHP">🏰 500</span>
+                </div>
+                <div class="unit-row" id="blueUnits"></div>
+            </div>
+            <div class="player-zone" id="redZone" style="opacity:0.9;">
+                <h3 style="color:#f55b5b;">🔴 AI (红方)</h3>
+                <div class="info-row">
+                    <span class="gold-display" id="redGold">💰 200</span>
+                    <span class="income-display" id="redIncome">⏳ 400 10.0s</span>
+                    <span class="base-hp-display" id="redHP">🏰 500</span>
+                </div>
+                <div class="unit-row" id="redUnits"></div>
+            </div>
+        </div>
+        <button class="restart-btn" id="restartBtn">🔄 重新开始</button>
+    </div>
+    <div class="legend">💡 长按兵种连续出兵 | 拖拽地图/小地图移动视角 | 空格暂停 | ❓查看说明</div>
+</div>
+<div id="tooltipContainer"></div>
+
+<!-- 说明模态框 -->
+<div class="modal-overlay" id="helpModal">
+    <div class="modal-content">
+        <span class="modal-close-x" id="closeHelpX">&times;</span>
+        <h2>📖 游戏说明</h2>
+        <pre id="helpText"></pre>
+    </div>
+</div>
+
+<!-- 开发日志模态框 -->
+<div class="modal-overlay" id="logModal">
+    <div class="modal-content">
+        <span class="modal-close-x" id="closeLogX">&times;</span>
+        <h2>📜 更新日志</h2>
+        <pre id="logText"></pre>
+    </div>
+</div>
+
+<!-- 模式选择模态框 -->
+<div class="modal-overlay" id="diffModal">
+    <div class="modal-content">
+        <span class="modal-close-x" id="closeDiffX">&times;</span>
+        <h2>⚙️ 选择模式</h2>
+        <div style="text-align: center; margin: 20px 0;">
+            <button class="diff-btn easy" data-diff="easy">😊 简单</button>
+            <button class="diff-btn normal" data-diff="normal">⚔️ 普通</button>
+            <button class="diff-btn hell" data-diff="hell">💀 地狱</button>
+            <button class="diff-btn endless" data-diff="endless">♾️ 无尽</button>
+            <button class="diff-btn custom" data-diff="custom">🔧 自定义</button>
+        </div>
+        <p style="color:#aaa; font-size:14px; text-align:center;">简单/普通/地狱：AI策略不同<br>无尽：普通难度起，每轮AI属性+8%，每轮重置金币<br>自定义：自由设定AI属性与初始金币</p>
+    </div>
+</div>
+
+<!-- 自定义设置模态框 -->
+<div class="modal-overlay" id="customModal">
+    <div class="modal-content">
+        <span class="modal-close-x" id="closeCustomX">&times;</span>
+        <h2>🔧 自定义AI</h2>
+        <div class="custom-row"><label>攻击力倍率</label><input id="customAtk" type="number" value="1.0" step="0.1" min="0.1"></div>
+        <div class="custom-row"><label>生命值倍率</label><input id="customHp" type="number" value="1.0" step="0.1" min="0.1"></div>
+        <div class="custom-row"><label>AI初始金币</label><input id="customGold" type="number" value="200" step="10" min="0"></div>
+        <button class="custom-confirm" id="customConfirm">开始游戏</button>
+    </div>
+</div>
+
+<audio id="bgm" src="bgm.mp3" loop></audio>
+
+<script>
+(function() {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const GAME_MAP_WIDTH = 2000;
+    const GAME_HEIGHT = 460;
+    const MAP_PADDING = 22;
+    const BLUE_BASE = { x: 100, y: GAME_HEIGHT/2 };
+    const RED_BASE = { x: GAME_MAP_WIDTH - 100, y: GAME_HEIGHT/2 };
+    const BASE_ATTACK_RANGE = 360;
+    const BASE_DAMAGE = 60;
+    const BASE_ATTACK_SPEED = 0.85;
+    const BLUE_SPAWN_X = BLUE_BASE.x + 30;
+    const RED_SPAWN_X = RED_BASE.x - 30;
+    const SPAWN_Y_MIN = MAP_PADDING+30, SPAWN_Y_MAX = GAME_HEIGHT-MAP_PADDING-30;
+    const SEPARATION_RADIUS = 26, SEPARATION_FORCE = 55;
+    const GOLD_INTERVAL = 10;
+    const BASE_GOLD_INCOME = 400;
+    const MAX_GOLD = 6000;
+
+    // 单位数据 (按价格排序)
+    const UNITS = [
+        { id: 'recruit', name: '新兵', icon: '⚔️', cost: 20, damage: 8, hp: 55, armor: 0, attackSpeed: 0.8, moveSpeed: 1.6, range: 44, armorType: 'light', slogan: '人民战争的汪洋大海' },
+        { id: 'veteran', name: '老兵', icon: '🛡️', cost: 35, damage: 12, hp: 100, armor: 1, attackSpeed: 1.0, moveSpeed: 1.45, range: 46, armorType: 'heavy', slogan: '老兵不死……吗' },
+        { id: 'archer', name: '弓箭手', icon: '🏹', cost: 40, damage: 12, hp: 65, armor: 0, attackSpeed: 1.2, moveSpeed: 1.5, range: 180, armorType: 'light', slogan: '万箭齐发', trueDamage: true },
+        { id: 'wall', name: '城墙', icon: '🏯', cost: 45, damage: 5, hp: 250, armor: 1, attackSpeed: 2.0, moveSpeed: 0.8, range: 42, armorType: 'heavy', slogan: '不是，米拉奇有城墙这个英雄吗' },
+        { id: 'ninja', name: '忍者', icon: '🥷', cost: 50, damage: 22, hp: 70, armor: 0, attackSpeed: 0.5, moveSpeed: 2.6, range: 40, armorType: 'light', slogan: '吓我一跳我释放忍术！', special: { heavy: 1.3 } },
+        { id: 'samurai', name: '武士', icon: '⛩️', cost: 60, damage: 18, hp: 130, armor: 2, attackSpeed: 0.9, moveSpeed: 1.7, range: 48, armorType: 'heavy', slogan: 'Bushiroad?', special: { heavy: 1.3 } },
+        { id: 'assassin', name: '刺客', icon: '🗡️', cost: 65, damage: 25, hp: 70, armor: 0, attackSpeed: 0.4, moveSpeed: 3.0, range: 38, armorType: 'light', slogan: 'ass ass in', special: { light: 1.3 }, targetPriority: 'ranged' },
+        { id: 'nun', name: '修女', icon: '🧙', cost: 65, damage: 0, hp: 110, armor: 0, attackSpeed: 1.8, moveSpeed: 1.5, range: 170, armorType: 'magic', healer: true, healAmount: 15, slogan: '笨蛋奶妈' },
+        { id: 'mage', name: '魔法师', icon: '🔮', cost: 80, damage: 30, hp: 95, armor: 1, attackSpeed: 1.5, moveSpeed: 1.4, range: 200, armorType: 'magic', slogan: '知识就是力量', special: { heavy: 1.3, light: 1.3 } },
+        { id: 'arcaneGuard', name: '奥术卫士', icon: '🧿', cost: 90, damage: 20, hp: 220, armor: 3, attackSpeed: 1.3, moveSpeed: 1.2, range: 50, armorType: 'magic', slogan: '我，最后的螃蟹' },
+        { id: 'knight', name: '铁甲骑兵', icon: '🐴', cost: 110, damage: 30, hp: 260, armor: 5, attackSpeed: 1.1, moveSpeed: 2.0, range: 50, armorType: 'heavy', slogan: '铁骑冲锋' },
+        { id: 'krypton', name: '克弱', icon: '💠', cost: 550, damage: 100, hp: 800, armor: 5, attackSpeed: 1.0, moveSpeed: 1.5, range: 55, armorType: 'heavy', slogan: '昔人已乘黄鹤去', special: { heavy: 1.3 }, aoe: 3 },
+        { id: 'orange', name: '橘皮', icon: '👑', cost: 1000, damage: 200, hp: 1500, armor: 8, attackSpeed: 0.8, moveSpeed: 1.3, range: 60, armorType: 'magic', slogan: '闹够了没有？', special: { heavy: 1.5, light: 1.5, magic: 1.5 } }
+    ];
+
+    function getDamageMultiplier(attackerType, defenderType, special = null) {
+        let mult = 1.0;
+        if (attackerType === 'heavy' && defenderType === 'light') mult = 1.3;
+        else if (attackerType === 'light' && defenderType === 'magic') mult = 1.3;
+        else if (attackerType === 'magic' && defenderType === 'heavy') mult = 1.3;
+        if (special && special[defenderType]) mult *= special[defenderType];
+        return mult;
+    }
+
+    function getIncomeBonusRatio(cost) {
+        if (cost <= 30) return 0.02;
+        if (cost <= 60) return 0.03;
+        if (cost <= 100) return 0.04;
+        if (cost <= 200) return 0.05;
+        return 0.06;
+    }
+
+    function getArmorTypeName(type) {
+        return { light: '轻甲', heavy: '重甲', magic: '魔法甲' }[type] || type;
+    }
+
+    function getCounterInfo(armorType) {
+        const map = {
+            heavy: { strong: '轻甲', weak: '魔法甲' },
+            light: { strong: '魔法甲', weak: '重甲' },
+            magic: { strong: '重甲', weak: '轻甲' }
+        };
+        return map[armorType] || { strong: '无', weak: '无' };
+    }
+
+    const STRONG_AGAINST = { light: 'heavy', magic: 'light', heavy: 'magic' };
+
+    let gameState = {
+        blue: null, red: null,
+        units: [],
+        gameOver: false, winner: null,
+        lastTimestamp: 0,
+        blueGoldTimer: GOLD_INTERVAL,
+        redGoldTimer: GOLD_INTERVAL,
+        blueBaseIncome: BASE_GOLD_INCOME,
+        redBaseIncome: BASE_GOLD_INCOME,
+        elapsedTime: 0,
+        started: false,
+        mode: 'normal',
+        wave: 1,
+        waveMessageTimer: 0,
+        aiStatMult: 1.0,
+        customSettings: null
+    };
+    let unitIdCounter = 0;
+    let cameraX = BLUE_BASE.x - 50;
+    let isPaused = false;
+    let speedMultiplier = 1;
+    let currentDifficulty = null;
+    let aiTargetArmor = null;
+    let isFirstRun = true;
+
+    // 长按连续出兵相关
+    let holdTimer = null;
+    let holdUnitId = null;
+
+    function getUnitConfig(id) { return UNITS.find(u => u.id === id); }
+    function dist2D(a,b) { const dx=a.x-b.x, dy=a.y-b.y; return Math.sqrt(dx*dx+dy*dy); }
+    function normalize2D(dx,dy) { const len=Math.sqrt(dx*dx+dy*dy); if(len<0.0001) return {x:0,y:0}; return {x:dx/len, y:dy/len}; }
+    function clamp(v,min,max) { return Math.max(min, Math.min(max, v)); }
+    function randomSpawnY() { return SPAWN_Y_MIN + Math.random()*(SPAWN_Y_MAX-SPAWN_Y_MIN); }
+
+    function spawnUnit(cfg, side) {
+        let hp = cfg.hp, damage = cfg.damage;
+        if (side === 'red') {
+            if (currentDifficulty === 'hell') {
+                hp = Math.floor(hp * 1.2);
+                damage = Math.floor(damage * 1.2);
+            }
+            if (gameState.mode === 'endless') {
+                hp = Math.floor(hp * gameState.aiStatMult);
+                damage = Math.floor(damage * gameState.aiStatMult);
+            }
+            if (gameState.customSettings) {
+                hp = Math.floor(hp * gameState.customSettings.hpMult);
+                damage = Math.floor(damage * gameState.customSettings.atkMult);
+            }
+        }
+        return {
+            id: ++unitIdCounter, type: cfg.id,
+            x: side==='blue' ? BLUE_SPAWN_X : RED_SPAWN_X, y: randomSpawnY(),
+            hp, maxHp: hp, damage, armor: cfg.armor,
+            attackSpeed: cfg.attackSpeed, moveSpeed: cfg.moveSpeed,
+            range: cfg.range, side, armorType: cfg.armorType,
+            healer: cfg.healer||false, healAmount: cfg.healAmount||0,
+            special: cfg.special||null, trueDamage: cfg.trueDamage||false,
+            aoe: cfg.aoe||0,
+            targetPriority: cfg.targetPriority||null,
+            attackCooldown: 0, targetId: null,
+            attackAnim: 0, attackTargetPos: null,
+        };
+    }
+
+    function tryBuyUnit(side, unitId) {
+        if (gameState.gameOver || isPaused || !gameState.started) return false;
+        const player = side==='blue' ? gameState.blue : gameState.red;
+        const cfg = getUnitConfig(unitId);
+        if (!cfg || player.gold < cfg.cost) return false;
+        player.gold -= cfg.cost;
+        gameState.units.push(spawnUnit(cfg, side));
+        const bonus = Math.floor(cfg.cost * getIncomeBonusRatio(cfg.cost));
+        if (side === 'blue') gameState.blueBaseIncome += bonus;
+        else gameState.redBaseIncome += bonus;
+        updateAllUI();
+        return true;
+    }
+
+    function checkGameOver() {
+        if (gameState.blue.baseHP <= 0) {
+            gameState.gameOver = true; gameState.winner = 'red'; return true;
+        }
+        if (gameState.red.baseHP <= 0) {
+            if (gameState.mode === 'endless') { startNextWave(); return false; }
+            else { gameState.gameOver = true; gameState.winner = 'blue'; return true; }
+        }
+        return false;
+    }
+
+    function startNextWave() {
+        gameState.wave++;
+        gameState.aiStatMult = 1 + (gameState.wave - 1) * 0.08;
+        gameState.blue.gold = 200;
+        gameState.blue.baseHP = 500;
+        gameState.red.gold = 200;
+        gameState.red.baseHP = 500;
+        gameState.units = [];
+        gameState.blueGoldTimer = GOLD_INTERVAL;
+        gameState.redGoldTimer = GOLD_INTERVAL;
+        gameState.blueBaseIncome = BASE_GOLD_INCOME;
+        gameState.redBaseIncome = BASE_GOLD_INCOME;
+        gameState.elapsedTime = 0;
+        gameState.waveMessageTimer = 1.5;
+        updateWaveDisplay();
+    }
+
+    function updateWaveDisplay() {
+        const disp = document.getElementById('waveDisplay');
+        if (gameState.mode === 'endless') { disp.style.display = 'inline'; disp.textContent = `🌊 第${gameState.wave}轮`; }
+        else disp.style.display = 'none';
+    }
+
+    function baseAttackUpdate(player, enemyUnits, deltaTime) {
+        if (player.attackCooldown > 0) player.attackCooldown -= deltaTime;
+        if (player.attackAnim > 0) player.attackAnim -= deltaTime;
+        if (!player.attackTarget || !enemyUnits.find(u => u.id === player.attackTarget && u.hp > 0 && dist2D(u, player.basePos) <= BASE_ATTACK_RANGE)) {
+            let closest = null, minDist = Infinity;
+            for (let u of enemyUnits) {
+                if (u.hp <= 0) continue;
+                const d = dist2D(u, player.basePos);
+                if (d <= BASE_ATTACK_RANGE && d < minDist) { minDist = d; closest = u; }
+            }
+            player.attackTarget = closest ? closest.id : null;
+        }
+        if (player.attackTarget && player.attackCooldown <= 0) {
+            const target = enemyUnits.find(u => u.id === player.attackTarget);
+            if (target && target.hp > 0 && dist2D(target, player.basePos) <= BASE_ATTACK_RANGE) {
+                target.hp -= BASE_DAMAGE;
+                player.attackCooldown = BASE_ATTACK_SPEED;
+                player.attackAnim = 0.2;
+                player.lastAttackTargetPos = { x: target.x, y: target.y };
+                if (target.hp <= 0) player.attackTarget = null;
+                if (checkGameOver()) return;
+            } else player.attackTarget = null;
+        }
+    }
+
+    function isRangedUnit(cfg) { return cfg && cfg.range > 60; }
+
+    function getAIUnitStats() {
+        const aiUnits = gameState.units.filter(u => u.side === 'red' && u.hp > 0);
+        let ranged = 0, melee = 0, nuns = 0;
+        aiUnits.forEach(u => {
+            const cfg = getUnitConfig(u.type);
+            if (!cfg) return;
+            if (cfg.healer) nuns++;
+            else if (isRangedUnit(cfg)) ranged++;
+            else melee++;
+        });
+        const total = aiUnits.length || 1;
+        return { ranged, melee, nuns, total, ratioRanged: ranged/total, ratioNuns: nuns/total };
+    }
+
+    function filterByBalance(units, stats) {
+        if (!units.length) return units;
+        const targetRangedRatio = 0.33;
+        const maxNunRatio = 0.25;
+        let filtered = units;
+        if (stats.ratioRanged > targetRangedRatio) {
+            const melee = units.filter(u => !isRangedUnit(u) && !u.healer);
+            if (melee.length > 0) filtered = melee;
+        }
+        if (stats.ratioNuns > maxNunRatio) {
+            const noNun = filtered.filter(u => !u.healer);
+            if (noNun.length > 0) filtered = noNun;
+        }
+        return filtered;
+    }
+
+    // AI 选兵逻辑（有钱减少杂鱼，并优先选有特殊克制的兵种）
+    function pickUnitByPhase(player, elapsed) {
+        const affordable = UNITS.filter(u => u.cost <= player.gold);
+        if (affordable.length === 0) return null;
+
+        if (player.gold >= 500) {
+            const expensive = affordable.filter(u => u.cost >= 50);
+            if (expensive.length > 0) {
+                const stats = getAIUnitStats();
+                const filtered = filterByBalance(expensive, stats);
+                const candidates = filtered.length ? filtered : expensive;
+                // 如果存在针对当前aiTargetArmor的特殊克制兵种，优先选取
+                if (aiTargetArmor) {
+                    const withSpecial = candidates.filter(u => u.special && u.special[aiTargetArmor]);
+                    if (withSpecial.length > 0) return withSpecial[Math.floor(Math.random()*withSpecial.length)];
+                }
+                return candidates[Math.floor(Math.random()*candidates.length)];
+            }
+        }
+
+        if (player.gold >= 250) {
+            const stats = getAIUnitStats();
+            let candidates = filterByBalance(affordable, stats);
+            if (candidates.length === 0) candidates = affordable;
+            if (aiTargetArmor) {
+                const withSpecial = candidates.filter(u => u.special && u.special[aiTargetArmor]);
+                if (withSpecial.length > 0) return withSpecial[Math.floor(Math.random()*withSpecial.length)];
+            }
+            return candidates.reduce((a,b) => a.cost > b.cost ? a : b);
+        }
+
+        let phase = 'early';
+        if (elapsed > 120) phase = 'late';
+        else if (elapsed > 60) phase = 'mid';
+
+        const stats = getAIUnitStats();
+        let pool = [];
+        const rand = Math.random();
+
+        if (phase === 'early') {
+            if (player.gold > 150) pool = affordable.filter(u => u.cost >= 50 && u.cost <= 70);
+            else pool = rand < 0.7 ? affordable.filter(u => u.cost <= 40) : affordable.filter(u => u.cost > 40 && u.cost <= 65);
+        } else if (phase === 'mid') {
+            if (rand < 0.4) pool = affordable.filter(u => u.cost > 35 && u.cost <= 70);
+            else if (rand < 0.8) pool = affordable.filter(u => u.cost <= 35);
+            else pool = affordable.filter(u => u.cost > 70);
+        } else {
+            if (rand < 0.5) pool = affordable.filter(u => u.cost >= 70);
+            else pool = affordable.filter(u => u.cost > 40 && u.cost < 70);
+        }
+
+        if (pool.length === 0) pool = affordable;
+        pool = filterByBalance(pool, stats);
+        if (pool.length === 0) pool = affordable;
+        if (aiTargetArmor) {
+            const withSpecial = pool.filter(u => u.special && u.special[aiTargetArmor]);
+            if (withSpecial.length > 0) return withSpecial[Math.floor(Math.random()*withSpecial.length)];
+        }
+        return pool[Math.floor(Math.random()*pool.length)];
+    }
+
+    function getCounterUnit(player) {
+        if (!aiTargetArmor) return null;
+        const neededType = STRONG_AGAINST[aiTargetArmor];
+        if (!neededType) return null;
+        let candidates = UNITS.filter(u => u.cost <= player.gold && u.armorType === neededType);
+        if (candidates.length === 0) return null;
+        // 优先选择对目标护甲有特殊克制的兵种
+        const withSpecial = candidates.filter(u => u.special && u.special[aiTargetArmor]);
+        if (withSpecial.length > 0) return withSpecial[Math.floor(Math.random()*withSpecial.length)];
+        return candidates[Math.floor(Math.random()*candidates.length)];
+    }
+
+    function aiUpdate(deltaTime) {
+        gameState.aiTimer -= deltaTime;
+        if (gameState.aiTimer > 0 && gameState.red.gold < 250) return;
+        if (gameState.gameOver || isPaused || !gameState.started) return;
+        const red = gameState.red;
+
+        if (currentDifficulty !== 'easy') {
+            const now = gameState.elapsedTime;
+            if (Math.floor(now) % 4 === 0 && Math.floor(now - deltaTime) % 4 !== 0) {
+                const blueUnits = gameState.units.filter(u => u.side === 'blue' && u.hp > 0);
+                if (blueUnits.length > 0) {
+                    const costByType = {};
+                    blueUnits.forEach(u => {
+                        const cfg = getUnitConfig(u.type);
+                        if (!cfg || isRangedUnit(cfg)) return;
+                        costByType[u.armorType] = (costByType[u.armorType] || 0) + cfg.cost;
+                    });
+                    let maxCost = 0, targetType = null;
+                    for (let t in costByType) {
+                        if (costByType[t] > maxCost) { maxCost = costByType[t]; targetType = t; }
+                    }
+                    aiTargetArmor = targetType;
+                }
+            }
+        }
+
+        if (red.gold >= 250) {
+            let chosen = null;
+            if (currentDifficulty !== 'easy' && aiTargetArmor) {
+                const counter = getCounterUnit(red);
+                if (counter && Math.random() < 0.8) chosen = counter;
+            }
+            if (!chosen) chosen = pickUnitByPhase(red, gameState.elapsedTime);
+            if (chosen) { tryBuyUnit('red', chosen.id); gameState.aiTimer = 0.3; return; }
+        }
+
+        if (currentDifficulty !== 'easy' && aiTargetArmor) {
+            const counterUnit = getCounterUnit(red);
+            if (counterUnit && Math.random() < 0.8) {
+                tryBuyUnit('red', counterUnit.id);
+                gameState.aiTimer = 0.5;
+                return;
+            }
+        }
+
+        const chosen = pickUnitByPhase(red, gameState.elapsedTime);
+        if (chosen) {
+            if (red.gold < 150 && Math.random() < 0.2) return;
+            tryBuyUnit('red', chosen.id);
+        }
+        gameState.aiTimer = 0.6 + Math.random()*0.4;
+    }
+
+    function updateGame(deltaTime) {
+        if (gameState.gameOver || isPaused || !gameState.started) return;
+        gameState.elapsedTime += deltaTime;
+
+        gameState.blueGoldTimer -= deltaTime;
+        gameState.redGoldTimer -= deltaTime;
+        if (gameState.blueGoldTimer <= 0) {
+            gameState.blue.gold = Math.min(gameState.blue.gold + gameState.blueBaseIncome, MAX_GOLD);
+            gameState.blueGoldTimer += GOLD_INTERVAL;
+        }
+        if (gameState.redGoldTimer <= 0) {
+            gameState.red.gold = Math.min(gameState.red.gold + gameState.redBaseIncome, MAX_GOLD);
+            gameState.redGoldTimer += GOLD_INTERVAL;
+        }
+
+        if (gameState.waveMessageTimer > 0) gameState.waveMessageTimer -= deltaTime;
+
+        aiUpdate(deltaTime);
+
+        baseAttackUpdate(gameState.blue, gameState.units.filter(u => u.side==='red' && u.hp>0), deltaTime);
+        baseAttackUpdate(gameState.red, gameState.units.filter(u => u.side==='blue' && u.hp>0), deltaTime);
+
+        for (let u of gameState.units) {
+            if (u.attackCooldown > 0) u.attackCooldown -= deltaTime;
+            if (u.attackAnim > 0) u.attackAnim -= deltaTime;
+        }
+
+        const sepMap = new Map();
+        for (let u of gameState.units) sepMap.set(u.id, {vx:0,vy:0});
+        for (let i=0;i<gameState.units.length;i++) {
+            for (let j=i+1;j<gameState.units.length;j++) {
+                const a=gameState.units[i], b=gameState.units[j];
+                if (a.side !== b.side) continue;
+                const dx=a.x-b.x, dy=a.y-b.y, dist=Math.sqrt(dx*dx+dy*dy);
+                if (dist < SEPARATION_RADIUS && dist>0.001) {
+                    const force = (SEPARATION_RADIUS-dist)/SEPARATION_RADIUS*SEPARATION_FORCE;
+                    const nx=dx/dist, ny=dy/dist;
+                    sepMap.get(a.id).vx+=nx*force; sepMap.get(a.id).vy+=ny*force;
+                    sepMap.get(b.id).vx-=nx*force; sepMap.get(b.id).vy-=ny*force;
+                }
+            }
+        }
+
+        for (let u of gameState.units) {
+            if (u.hp <= 0) continue;
+            if (u.targetId) {
+                let t = gameState.units.find(t=>t.id===u.targetId);
+                if (!t || t.hp<=0) u.targetId = null;
+            }
+            if (!u.targetId) {
+                let enemies = gameState.units.filter(e => e.side!==u.side && e.hp>0);
+                if (enemies.length === 0) {
+                    const enemyBase = u.side==='blue' ? RED_BASE : BLUE_BASE;
+                    const d = dist2D(u, enemyBase);
+                    if (d <= u.range) { // 使用单位自身攻击范围攻击水晶
+                        if (u.attackCooldown <= 0 && !u.healer) {
+                            gameState[u.side==='blue'?'red':'blue'].baseHP -= Math.max(1, u.damage-2);
+                            u.attackCooldown = u.attackSpeed;
+                            u.attackAnim = 0.15; u.attackTargetPos = {x: enemyBase.x, y: enemyBase.y};
+                            if (checkGameOver()) return;
+                        }
+                    } else {
+                        const dir = normalize2D(enemyBase.x-u.x, enemyBase.y-u.y);
+                        const sep = sepMap.get(u.id)||{vx:0,vy:0};
+                        u.x += (dir.x*u.moveSpeed*60 + sep.vx)*deltaTime;
+                        u.y += (dir.y*u.moveSpeed*60 + sep.vy)*deltaTime;
+                    }
+                    u.x = clamp(u.x, MAP_PADDING, GAME_MAP_WIDTH-MAP_PADDING);
+                    u.y = clamp(u.y, MAP_PADDING, GAME_HEIGHT-MAP_PADDING);
+                    continue;
+                }
+
+                // 刺客优先索敌远程
+                let closest = null, minDist = Infinity;
+                if (u.targetPriority === 'ranged') {
+                    const rangedEnemies = enemies.filter(e => isRangedUnit(getUnitConfig(e.type)));
+                    for (let e of rangedEnemies) {
+                        const d = dist2D(u, e);
+                        if (d < minDist) { minDist = d; closest = e; }
+                    }
+                }
+                if (!closest) {
+                    for (let e of enemies) {
+                        const d = dist2D(u, e);
+                        if (d < minDist) { minDist = d; closest = e; }
+                    }
+                }
+                if (closest) u.targetId = closest.id;
+            }
+
+            if (u.targetId) {
+                let target = gameState.units.find(t=>t.id===u.targetId);
+                if (!target || target.hp<=0) { u.targetId=null; continue; }
+                const dist = dist2D(u, target);
+                if (dist <= u.range) {
+                    if (u.attackCooldown <= 0) {
+                        if (u.healer) {
+                            let allies = gameState.units.filter(a => a.side===u.side && a.hp<a.maxHp && a.id!==u.id && dist2D(u,a)<=u.range);
+                            if (allies.length) {
+                                allies.sort((a,b) => {
+                                    const cfgA = getUnitConfig(a.type), cfgB = getUnitConfig(b.type);
+                                    const costDiff = (cfgB?.cost||0) - (cfgA?.cost||0);
+                                    if (costDiff !== 0) return costDiff;
+                                    const hpDiff = (a.hp/a.maxHp) - (b.hp/b.maxHp);
+                                    if (hpDiff !== 0) return hpDiff;
+                                    return (u.side==='blue' ? a.x : -a.x) - (u.side==='blue' ? b.x : -b.x);
+                                });
+                                const heal = allies[0];
+                                heal.hp = Math.min(heal.maxHp, heal.hp + (u.healAmount||15));
+                                u.attackAnim = 0.15; u.attackTargetPos = {x: heal.x, y: heal.y};
+                            }
+                            u.attackCooldown = u.attackSpeed;
+                        } else {
+                            let multiplier = getDamageMultiplier(u.armorType, target.armorType, u.special);
+                            let dmg = Math.floor(u.damage * multiplier);
+                            let effectiveArmor = u.trueDamage ? 0 : target.armor;
+                            target.hp -= Math.max(1, dmg - effectiveArmor);
+                            u.attackCooldown = u.attackSpeed;
+                            u.attackAnim = 0.15; u.attackTargetPos = {x: target.x, y: target.y};
+                            if (target.hp <= 0) u.targetId = null;
+
+                            // 克弱AOE限制在自身攻击范围内
+                            if (u.aoe > 1) {
+                                let enemiesInRange = gameState.units.filter(e => e.side!==u.side && e.hp>0 && e.id !== target.id && dist2D(u, e) <= u.range);
+                                enemiesInRange.sort((a,b) => dist2D(u,a)-dist2D(u,b));
+                                const hits = enemiesInRange.slice(0, u.aoe-1);
+                                hits.forEach(e => {
+                                    const mult = getDamageMultiplier(u.armorType, e.armorType, u.special);
+                                    const d = Math.floor(u.damage * mult);
+                                    e.hp -= Math.max(1, d - (u.trueDamage?0:e.armor));
+                                });
+                            }
+                        }
+                    }
+                    const sep = sepMap.get(u.id)||{vx:0,vy:0};
+                    u.x += sep.vx*deltaTime; u.y += sep.vy*deltaTime;
+                } else {
+                    const dir = normalize2D(target.x-u.x, target.y-u.y);
+                    const sep = sepMap.get(u.id)||{vx:0,vy:0};
+                    u.x += (dir.x*u.moveSpeed*60 + sep.vx)*deltaTime;
+                    u.y += (dir.y*u.moveSpeed*60 + sep.vy)*deltaTime;
+                }
+            }
+            u.x = clamp(u.x, MAP_PADDING, GAME_MAP_WIDTH-MAP_PADDING);
+            u.y = clamp(u.y, MAP_PADDING, GAME_HEIGHT-MAP_PADDING);
+        }
+        gameState.units = gameState.units.filter(u => u.hp > 0);
+        updateAllUI();
+    }
+
+    function drawBackground() {
+        const skyGrad = ctx.createLinearGradient(0,0,0,GAME_HEIGHT);
+        skyGrad.addColorStop(0,'#5b6e8a'); skyGrad.addColorStop(0.55,'#3d4f66'); skyGrad.addColorStop(1,'#2a3545');
+        ctx.fillStyle=skyGrad;
+        ctx.fillRect(-cameraX, 0, GAME_MAP_WIDTH, GAME_HEIGHT);
+        ctx.fillStyle='#4a6b3a';
+        ctx.fillRect(-cameraX, GAME_HEIGHT-55, GAME_MAP_WIDTH, 55);
+        ctx.fillStyle='#3d5a2f';
+        for (let i=-cameraX; i < GAME_MAP_WIDTH - cameraX; i+=32) ctx.fillRect(i+5, GAME_HEIGHT-50, 18, 6);
+    }
+
+    function drawCrystal(basePos, player) {
+        ctx.save();
+        const drawX = basePos.x - cameraX, drawY = basePos.y;
+        ctx.strokeStyle = player.color+'60'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+        ctx.beginPath(); ctx.arc(drawX, drawY, BASE_ATTACK_RANGE, 0, Math.PI*2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.shadowColor=player.color; ctx.shadowBlur=22;
+        const cGrad = ctx.createLinearGradient(drawX-18,drawY,drawX+18,drawY);
+        cGrad.addColorStop(0,player.color); cGrad.addColorStop(0.5,'#fff'); cGrad.addColorStop(1,player.color);
+        ctx.fillStyle=cGrad;
+        ctx.beginPath();
+        ctx.moveTo(drawX,drawY-30); ctx.lineTo(drawX+18,drawY-3); ctx.lineTo(drawX+10,drawY+16);
+        ctx.lineTo(drawX-10,drawY+16); ctx.lineTo(drawX-18,drawY-3); ctx.closePath();
+        ctx.fill(); ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=2; ctx.stroke();
+        ctx.fillStyle='#fff'; ctx.font='bold 13px "Segoe UI"'; ctx.textAlign='center';
+        ctx.fillText(`🏰 ${Math.ceil(player.baseHP)}`, drawX, drawY-38);
+        if (player.attackAnim > 0 && player.lastAttackTargetPos) {
+            ctx.beginPath();
+            ctx.moveTo(drawX, drawY-10);
+            ctx.lineTo(player.lastAttackTargetPos.x - cameraX, player.lastAttackTargetPos.y);
+            ctx.strokeStyle = player.color; ctx.lineWidth = 4; ctx.globalAlpha = 0.7;
+            ctx.stroke(); ctx.globalAlpha = 1;
+        }
+        ctx.restore();
+    }
+
+    function drawUnits() {
+        const sorted = [...gameState.units].sort((a,b)=>a.y-b.y);
+        for (let u of sorted) {
+            const cfg = getUnitConfig(u.type); if(!cfg) continue;
+            const drawX = u.x - cameraX;
+            if (drawX < -60 || drawX > canvas.width + 60) continue;
+            ctx.save(); ctx.translate(drawX, u.y);
+            ctx.fillStyle='rgba(0,0,0,0.35)';
+            ctx.beginPath(); ctx.ellipse(0,7,11,4.5,0,0,Math.PI*2); ctx.fill();
+            ctx.font='27px "Segoe UI Emoji"'; ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillText(cfg.icon,0,-1);
+            const hpP = Math.max(0, u.hp/u.maxHp), barW=30, barY=-21;
+            ctx.fillStyle='#1a1a1a'; ctx.fillRect(-barW/2,barY,barW,5);
+            ctx.fillStyle = u.side==='blue' ?
+                `rgb(${Math.floor(70+185*(1-hpP))},${Math.floor(140+115*hpP)},255)` :
+                `rgb(255,${Math.floor(80+175*hpP)},${Math.floor(80+175*hpP)})`;
+            ctx.fillRect(-barW/2,barY,barW*hpP,5);
+            if (u.attackAnim > 0 && u.attackTargetPos && (cfg.range > 60 || u.healer)) {
+                ctx.beginPath();
+                ctx.moveTo(0, -5);
+                ctx.lineTo(u.attackTargetPos.x - u.x, u.attackTargetPos.y - u.y);
+                ctx.strokeStyle = u.healer ? '#88ff88' : '#ffbb2e';
+                ctx.lineWidth = 2.5; ctx.globalAlpha = 0.5;
+                ctx.stroke(); ctx.globalAlpha = 1;
+            }
+            ctx.restore();
+        }
+    }
+
+    function drawUI() {
+        if (!gameState.started) {
+            ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,0,canvas.width,GAME_HEIGHT);
+            ctx.fillStyle='#ffd966'; ctx.font='bold 32px "Segoe UI"'; ctx.textAlign='center';
+            ctx.fillText('请先选择模式', canvas.width/2, GAME_HEIGHT/2);
+            return;
+        }
+        if (gameState.waveMessageTimer > 0) {
+            ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0, GAME_HEIGHT/2-40, canvas.width, 80);
+            ctx.fillStyle='#ffbb2e'; ctx.font='bold 36px "Segoe UI"'; ctx.textAlign='center';
+            ctx.fillText(`无尽模式—第${gameState.wave}轮`, canvas.width/2, GAME_HEIGHT/2+12);
+        }
+        if (gameState.gameOver) {
+            ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,canvas.width,GAME_HEIGHT);
+            ctx.fillStyle='#ffd966'; ctx.font='bold 46px "Segoe UI"'; ctx.textAlign='center';
+            let message = gameState.winner==='blue' ? '你赢了！' : 'AI赢了';
+            ctx.fillText(message, canvas.width/2, GAME_HEIGHT/2);
+            if (gameState.mode === 'endless' && gameState.winner === 'red') {
+                ctx.font = 'bold 24px "Segoe UI"';
+                ctx.fillText(`你坚持到了第 ${gameState.wave} 轮`, canvas.width/2, GAME_HEIGHT/2+50);
+            }
+        }
+        ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(canvas.width/2-90,6,180,30);
+        ctx.fillStyle='#fff'; ctx.font='bold 16px "Segoe UI"'; ctx.textAlign='center';
+        ctx.fillText('米拉奇战记 v3.2', canvas.width/2,27);
+    }
+
+    // 小地图
+    const minimapCanvas = document.getElementById('minimapCanvas');
+    const minimapCtx = minimapCanvas.getContext('2d');
+    const minimapScaleX = GAME_MAP_WIDTH / minimapCanvas.width;
+    const minimapScaleY = GAME_HEIGHT / minimapCanvas.height;
+
+    function drawMinimap() {
+        minimapCtx.clearRect(0,0,minimapCanvas.width,minimapCanvas.height);
+        minimapCtx.fillStyle='#151820'; minimapCtx.fillRect(0,0,minimapCanvas.width,minimapCanvas.height);
+        gameState.units.forEach(u => {
+            const mx=u.x/minimapScaleX, my=u.y/minimapScaleY;
+            minimapCtx.fillStyle = u.side==='blue'?'#5b9cf5':'#f55b5b';
+            minimapCtx.beginPath(); minimapCtx.arc(mx,my,2,0,Math.PI*2); minimapCtx.fill();
+        });
+        const size=4;
+        minimapCtx.fillStyle='#5b9cf5'; minimapCtx.fillRect(BLUE_BASE.x/minimapScaleX-size/2, BLUE_BASE.y/minimapScaleY-size/2, size, size);
+        minimapCtx.fillStyle='#f55b5b'; minimapCtx.fillRect(RED_BASE.x/minimapScaleX-size/2, RED_BASE.y/minimapScaleY-size/2, size, size);
+        const viewW=canvas.width/minimapScaleX, viewH=GAME_HEIGHT/minimapScaleY, viewX=cameraX/minimapScaleX;
+        minimapCtx.strokeStyle='rgba(255,255,255,0.7)'; minimapCtx.lineWidth=1.5; minimapCtx.setLineDash([4,4]);
+        minimapCtx.strokeRect(viewX,0,viewW,viewH); minimapCtx.setLineDash([]);
+    }
+
+    // 小地图拖拽
+    let minimapDrag=false;
+    minimapCanvas.addEventListener('mousedown',(e)=>{
+        minimapDrag=true; const rect=minimapCanvas.getBoundingClientRect();
+        const scaleX=minimapCanvas.width/rect.width, mouseX=(e.clientX-rect.left)*scaleX;
+        cameraX=clamp(mouseX*minimapScaleX-canvas.width/2,0,GAME_MAP_WIDTH-canvas.width); e.preventDefault();
+    });
+    window.addEventListener('mousemove',(e)=>{
+        if(!minimapDrag)return; const rect=minimapCanvas.getBoundingClientRect();
+        const scaleX=minimapCanvas.width/rect.width, mouseX=(e.clientX-rect.left)*scaleX;
+        cameraX=clamp(mouseX*minimapScaleX-canvas.width/2,0,GAME_MAP_WIDTH-canvas.width);
+    });
+    window.addEventListener('mouseup',()=>{minimapDrag=false;});
+    minimapCanvas.addEventListener('touchstart',(e)=>{
+        minimapDrag=true; const rect=minimapCanvas.getBoundingClientRect();
+        const scaleX=minimapCanvas.width/rect.width, touchX=(e.touches[0].clientX-rect.left)*scaleX;
+        cameraX=clamp(touchX*minimapScaleX-canvas.width/2,0,GAME_MAP_WIDTH-canvas.width); e.preventDefault();
+    },{passive:false});
+    minimapCanvas.addEventListener('touchmove',(e)=>{
+        if(!minimapDrag)return; const rect=minimapCanvas.getBoundingClientRect();
+        const scaleX=minimapCanvas.width/rect.width, touchX=(e.touches[0].clientX-rect.left)*scaleX;
+        cameraX=clamp(touchX*minimapScaleX-canvas.width/2,0,GAME_MAP_WIDTH-canvas.width);
+    });
+    minimapCanvas.addEventListener('touchend',()=>{minimapDrag=false;});
+
+    // 兵种卡片 (长按连续出兵)
+    function createUnitCards() {
+        const blueC = document.getElementById('blueUnits');
+        blueC.innerHTML = '';
+        UNITS.forEach(unit => {
+            const card = document.createElement('div');
+            card.className = 'unit-card'; card.dataset.unitId = unit.id;
+            card.innerHTML = `<span class="unit-icon">${unit.icon}</span><span class="unit-name">${unit.name}</span><span class="unit-cost">💰${unit.cost}</span>`;
+            const startBuy = (e) => {
+                e.preventDefault();
+                if (gameState.gameOver || isPaused || !gameState.started) return;
+                const unitId = card.dataset.unitId;
+                if (tryBuyUnit('blue', unitId)) {
+                    if (holdTimer) clearInterval(holdTimer);
+                    holdUnitId = unitId;
+                    holdTimer = setInterval(() => {
+                        if (!tryBuyUnit('blue', holdUnitId)) {
+                            clearInterval(holdTimer);
+                            holdTimer = null;
+                        }
+                    }, 150);
+                }
+            };
+            const stopBuy = () => {
+                if (holdTimer) { clearInterval(holdTimer); holdTimer = null; }
+            };
+            card.addEventListener('mousedown', startBuy);
+            card.addEventListener('touchstart', startBuy, {passive: false});
+            card.addEventListener('mouseleave', stopBuy);
+            card.addEventListener('mouseup', stopBuy);
+            card.addEventListener('touchend', stopBuy);
+            card.addEventListener('touchcancel', stopBuy);
+            card.addEventListener('mouseenter', (e) => showTooltip(e, unit));
+            card.addEventListener('mouseleave', () => { hideTooltip(); stopBuy(); });
+            blueC.appendChild(card);
+        });
+
+        const redC = document.getElementById('redUnits');
+        redC.innerHTML = '';
+        UNITS.forEach(unit => {
+            const card = document.createElement('div');
+            card.className = 'unit-card ai-card';
+            card.innerHTML = `<span class="unit-icon">${unit.icon}</span><span class="unit-name">${unit.name}</span><span class="unit-cost">💰${unit.cost}</span>`;
+            card.addEventListener('mouseenter', (e) => showTooltip(e, unit));
+            card.addEventListener('mouseleave', hideTooltip);
+            redC.appendChild(card);
+        });
+    }
+
+    window.addEventListener('mouseup', () => { if (holdTimer) { clearInterval(holdTimer); holdTimer = null; } });
+    window.addEventListener('touchend', () => { if (holdTimer) { clearInterval(holdTimer); holdTimer = null; } });
+
+    let tooltipDiv=null;
+    function showTooltip(e,unit){
+        if(!tooltipDiv){ tooltipDiv=document.createElement('div'); tooltipDiv.className='tooltip'; document.body.appendChild(tooltipDiv); }
+        const armorName=getArmorTypeName(unit.armorType);
+        const {strong,weak}=getCounterInfo(unit.armorType);
+        let specialDesc='';
+        if(unit.special){ const targets=[]; for(let t in unit.special) targets.push(getArmorTypeName(t)); specialDesc=`<br><span style="color:#ffaa00;">✨ 额外克制 ${targets.join('、')}</span>`; }
+        let attackLabel = unit.healer ? '治疗量' : (unit.trueDamage ? '攻击力(真伤)' : '攻击力');
+        tooltipDiv.innerHTML=`
+            <div class="stat"><span class="label">${attackLabel}</span><span class="value">${unit.healAmount||unit.damage}</span></div>
+            <div class="stat"><span class="label">生命值</span><span class="value">${unit.hp}</span></div>
+            <div class="stat"><span class="label">护甲</span><span class="value">${unit.armor} (${armorName})</span></div>
+            <div class="counter">
+                <span class="strong">⚔️ 克制 ${strong}</span><br>
+                <span class="weak">🛡️ 被 ${weak} 克制</span>
+                ${specialDesc}
+            </div>
+            <div class="slogan">“${unit.slogan}”</div>
+        `;
+        if(unit.aoe) tooltipDiv.innerHTML += `<div style="color:#ffbb2e;margin-top:4px;">💥 群体伤害(近3敌)</div>`;
+        tooltipDiv.style.display='block';
+        tooltipDiv.style.left=(e.clientX+18)+'px'; tooltipDiv.style.top=(e.clientY+18)+'px';
+    }
+    function hideTooltip(){ if(tooltipDiv) tooltipDiv.style.display='none'; }
+
+    function updateAllUI() {
+        if(!gameState.started) return;
+        document.getElementById('blueGold').textContent = `💰 ${Math.floor(gameState.blue.gold)}`;
+        document.getElementById('redGold').textContent = `💰 ${Math.floor(gameState.red.gold)}`;
+        document.getElementById('blueHP').textContent = `🏰 ${Math.ceil(gameState.blue.baseHP)}`;
+        document.getElementById('redHP').textContent = `🏰 ${Math.ceil(gameState.red.baseHP)}`;
+        document.getElementById('blueIncome').textContent = `⏳ ${gameState.blueBaseIncome} ${gameState.blueGoldTimer.toFixed(1)}s`;
+        document.getElementById('redIncome').textContent = `⏳ ${gameState.redBaseIncome} ${gameState.redGoldTimer.toFixed(1)}s`;
+        document.querySelectorAll('#blueUnits .unit-card').forEach(card => {
+            const cfg = getUnitConfig(card.dataset.unitId);
+            card.classList.toggle('cant-afford', cfg && gameState.blue.gold < cfg.cost);
+        });
+        const totalSec = Math.floor(gameState.elapsedTime);
+        const min = Math.floor(totalSec/60), sec = totalSec%60;
+        document.getElementById('timerDisplay').textContent = `⏱ ${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    }
+
+    function initGame(difficulty, custom=null) {
+        currentDifficulty = difficulty;
+        gameState.mode = (difficulty === 'endless') ? 'endless' : 'normal';
+        gameState.wave = 1;
+        gameState.aiStatMult = 1.0;
+        gameState.waveMessageTimer = 0;
+        gameState.blueGoldTimer = GOLD_INTERVAL;
+        gameState.redGoldTimer = GOLD_INTERVAL;
+        gameState.blueBaseIncome = BASE_GOLD_INCOME;
+        gameState.redBaseIncome = BASE_GOLD_INCOME;
+        gameState.customSettings = custom;
+        const startGold = custom ? custom.startGold : 200;
+        gameState.blue = { gold:200, baseHP:500, color:'#5b9cf5', basePos:BLUE_BASE, attackCooldown:0, attackTarget:null, attackAnim:0 };
+        gameState.red = { gold:startGold, baseHP:500, color:'#f55b5b', basePos:RED_BASE, attackCooldown:0, attackTarget:null, attackAnim:0 };
+        gameState.units = [];
+        gameState.gameOver = false; gameState.winner = null;
+        gameState.elapsedTime = 0; gameState.lastTimestamp = 0; gameState.started = true;
+        cameraX = BLUE_BASE.x - 50;
+        isPaused = false; speedMultiplier = 1; aiTargetArmor = null;
+        document.getElementById('pauseBtn').textContent = '⏯️';
+        document.getElementById('pauseBtn').classList.remove('active');
+        document.getElementById('speedBtn').classList.remove('active');
+        updateWaveDisplay();
+        updateAllUI();
+    }
+
+    function gameLoop(ts) {
+        if (!gameState.lastTimestamp) gameState.lastTimestamp = ts;
+        let dt = Math.min(0.05, (ts - gameState.lastTimestamp)/1000);
+        gameState.lastTimestamp = ts;
+        if (gameState.started && !isPaused) updateGame(dt * speedMultiplier);
+        drawBackground();
+        if (gameState.started) {
+            drawCrystal(BLUE_BASE, gameState.blue);
+            drawCrystal(RED_BASE, gameState.red);
+            drawUnits();
+        }
+        drawUI();
+        if (gameState.started) drawMinimap();
+        requestAnimationFrame(gameLoop);
+    }
+
+    // 大地图拖拽
+    let dragging=false, dragStartX=0, dragStartCam=0;
+    canvas.addEventListener('mousedown',(e)=>{ if(e.button===0){ dragging=true; dragStartX=e.clientX; dragStartCam=cameraX; e.preventDefault(); } });
+    window.addEventListener('mousemove',(e)=>{ if(!dragging)return; const dx=e.clientX-dragStartX; cameraX=clamp(dragStartCam-dx,0,GAME_MAP_WIDTH-canvas.width); });
+    window.addEventListener('mouseup',()=>{ dragging=false; });
+    canvas.addEventListener('touchstart',(e)=>{ if(e.touches.length===1){ dragging=true; dragStartX=e.touches[0].clientX; dragStartCam=cameraX; e.preventDefault(); } },{passive:false});
+    canvas.addEventListener('touchmove',(e)=>{ if(!dragging)return; const dx=e.touches[0].clientX-dragStartX; cameraX=clamp(dragStartCam-dx,0,GAME_MAP_WIDTH-canvas.width); });
+    canvas.addEventListener('touchend',()=>{ dragging=false; });
+
+    const pauseBtn=document.getElementById('pauseBtn'), speedBtn=document.getElementById('speedBtn');
+    function togglePause(){ isPaused=!isPaused; pauseBtn.textContent=isPaused?'▶️':'⏯️'; pauseBtn.classList.toggle('active',isPaused); }
+    pauseBtn.addEventListener('click',togglePause);
+    speedBtn.addEventListener('click',()=>{ speedMultiplier=speedMultiplier===1?2:1; speedBtn.classList.toggle('active',speedMultiplier===2); });
+    document.addEventListener('keydown',(e)=>{ if(e.code==='Space'&&gameState.started){ e.preventDefault(); togglePause(); } });
+
+    let preModalPause=false;
+    function pauseForModal(){ if(gameState.started&&!isPaused){ preModalPause=false; togglePause(); } else preModalPause=isPaused; }
+    function resumeFromModal(){ if(gameState.started&&!preModalPause){ if(isPaused) togglePause(); } }
+
+    const bgm=document.getElementById('bgm'), musicBtn=document.getElementById('musicBtn');
+    let musicPlaying=false;
+    function tryAutoPlay(){ bgm.play().then(()=>{ musicPlaying=true; musicBtn.classList.add('active'); }).catch(()=>{ musicPlaying=false; }); }
+    document.body.addEventListener('click',function initMusic(){ if(!musicPlaying) tryAutoPlay(); },{once:false});
+    musicBtn.addEventListener('click',(e)=>{ e.stopPropagation(); if(musicPlaying){ bgm.pause(); musicPlaying=false; musicBtn.classList.remove('active'); } else { bgm.play().then(()=>{ musicPlaying=true; musicBtn.classList.add('active'); }).catch(()=>{}); } });
+
+    const helpModal=document.getElementById('helpModal');
+    document.getElementById('helpText').textContent = `
+【经济系统】
+- 每10秒获得400金币（基础值），部署单位可永久提升收入基数。
+- 提升比例：兵种费用越高，奖励比例越高（2%~6%）。
+- 金币上限6000，谨慎理财。
+【三角护甲克制】
+重甲→轻甲→魔法甲→重甲（造成30%额外伤害），部分兵种拥有特殊双重克制。
+【兵种特殊机制】
+- 弓箭手：真实伤害，无视护甲。
+- 克弱：群体伤害，每次攻击最多伤害3个敌人，对重甲额外克制。
+- 修女：治疗，优先高价值→残血→前排。
+- 刺客：优先攻击远程单位。
+- 城墙：低护甲坦克，移速略增。
+【攻击水晶机制】
+单位必须接近到自身攻击范围才能攻击水晶，近战兵需近身。
+【模式说明】
+- 简单/普通/地狱：AI策略不同，地狱属性强化。
+- 无尽：普通起，每轮AI属性+8%，每轮重置金币200。
+- 自定义：自由设定AI属性与初始金币。
+【操作】
+- 长按兵种卡片连续出兵，拖拽地图/小地图移动视角，空格暂停。
+    `;
+    document.getElementById('helpBtn').addEventListener('click',()=>{ pauseForModal(); helpModal.classList.add('show'); });
+    document.getElementById('closeHelpX').addEventListener('click',()=>{ helpModal.classList.remove('show'); resumeFromModal(); });
+    helpModal.addEventListener('click',(e)=>{ if(e.target===helpModal){ helpModal.classList.remove('show'); resumeFromModal(); } });
+
+    const logModal=document.getElementById('logModal'), logText=document.getElementById('logText'), logBtn=document.getElementById('logBtn'), closeLogX=document.getElementById('closeLogX');
+    logText.textContent = `
+米拉奇战记 · 更新日志
+================================
+v3.2 (2026-05-22)
+- 修复无尽模式金币继承bug，每轮重置为200
+- 修复近战兵远程推水晶：攻击水晶距离改为使用单位自身攻击范围
+- 克弱多目标攻击限定在自身攻击范围内
+- 刺客新增索敌：优先攻击远程兵种
+- AI针对性出兵现在考虑特殊克制（如武士对重甲）
+- 城墙护甲降为1，移速提升至0.8
+- 说明与日志更新
+v3.1 永久经济累加、长按出兵、AI优化、详尽说明
+v3.0 经济重做、城墙、真伤、群伤、自定义模式
+v2.2 弹窗修复
+v2.1 无尽模式、克弱橘皮
+v2.0 三角克制、特殊机制
+v1.9 修复AI囤钱
+v1.8 三档难度
+v1.7 攻城甲
+v1.6 水晶射程180
+v1.5 地图延长
+v1.4 BGM
+v1.3 三角克制
+v1.2 防御塔模式
+v1.1 AI对手
+v1.0 2D战场
+    `;
+    logBtn.addEventListener('click',()=>{ pauseForModal(); logModal.classList.add('show'); });
+    function closeLogModal(){
+        logModal.classList.remove('show');
+        if(isFirstRun){ isFirstRun=false; helpModal.classList.add('show'); }
+        else resumeFromModal();
+    }
+    closeLogX.addEventListener('click',closeLogModal);
+    logModal.addEventListener('click',(e)=>{ if(e.target===logModal) closeLogModal(); });
+
+    const diffModal=document.getElementById('diffModal'), closeDiffX=document.getElementById('closeDiffX');
+    document.getElementById('restartBtn').addEventListener('click',()=>{ pauseForModal(); diffModal.classList.add('show'); });
+    closeDiffX.addEventListener('click',()=>{ diffModal.classList.remove('show'); resumeFromModal(); });
+    diffModal.addEventListener('click',(e)=>{ if(e.target===diffModal){ diffModal.classList.remove('show'); resumeFromModal(); } });
+
+    document.querySelectorAll('.diff-btn').forEach(btn=>{
+        btn.addEventListener('click',(e)=>{
+            const diff=e.target.dataset.diff;
+            if(diff==='custom'){
+                diffModal.classList.remove('show');
+                document.getElementById('customModal').classList.add('show');
+                return;
+            }
+            diffModal.classList.remove('show');
+            resumeFromModal();
+            initGame(diff);
+        });
+    });
+
+    const customModal=document.getElementById('customModal'), closeCustomX=document.getElementById('closeCustomX');
+    document.getElementById('customConfirm').addEventListener('click',()=>{
+        const atk=parseFloat(document.getElementById('customAtk').value)||1.0;
+        const hp=parseFloat(document.getElementById('customHp').value)||1.0;
+        const gold=parseInt(document.getElementById('customGold').value)||200;
+        customModal.classList.remove('show');
+        resumeFromModal();
+        initGame('custom',{atkMult:atk, hpMult:hp, startGold:gold});
+    });
+    closeCustomX.addEventListener('click',()=>{ customModal.classList.remove('show'); resumeFromModal(); });
+    customModal.addEventListener('click',(e)=>{ if(e.target===customModal){ customModal.classList.remove('show'); resumeFromModal(); } });
+
+    function firstRun(){ pauseForModal(); logModal.classList.add('show'); }
+    firstRun();
+    createUnitCards();
+    requestAnimationFrame(gameLoop);
+})();
+</script>
+</body>
+</html>

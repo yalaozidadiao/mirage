@@ -304,7 +304,10 @@
         status: '未连接',
         localSide: 'blue',
         protocolVersion: PROTOCOL_VERSION,
-        digestTimer: 0
+        digestTimer: 0,
+        snapshotTimer: 0,
+        snapshotSeq: 0,
+        lastAppliedSnapshotSeq: 0
     };
 
     function getUnitConfig(id) { return UNITS.find(u => u.id === id); }
@@ -386,6 +389,16 @@
         if (startBtn) startBtn.disabled = !(networkState.role === 'host' && networkState.conn && networkState.conn.open);
         const roomInput = document.getElementById('onlineRoomId');
         if (roomInput) roomInput.value = networkState.peerId || '';
+        const remoteControlled = gameState.matchType === 'onlineVersus' && networkState.role === 'guest';
+        if (pauseBtn) pauseBtn.disabled = remoteControlled;
+        if (speedBtn) speedBtn.disabled = remoteControlled;
+        if (remoteControlled) {
+            pauseBtn.title = '联机客机由房主控制暂停';
+            speedBtn.title = '联机客机由房主控制速度';
+        } else {
+            pauseBtn.title = '暂停 / 继续 (空格)';
+            speedBtn.title = '2倍速';
+        }
     }
 
     function updateOnlineDigest(digest) {
@@ -411,6 +424,67 @@
         };
     }
 
+    function cloneForNetwork(value) {
+        return JSON.parse(JSON.stringify(value));
+    }
+
+    function createStateSnapshot() {
+        return {
+            snapshotSeq: ++networkState.snapshotSeq,
+            blue: cloneForNetwork(gameState.blue),
+            red: cloneForNetwork(gameState.red),
+            units: cloneForNetwork(gameState.units),
+            unitIdCounter,
+            blueGoldTimer: gameState.blueGoldTimer,
+            redGoldTimer: gameState.redGoldTimer,
+            blueBaseIncome: gameState.blueBaseIncome,
+            redBaseIncome: gameState.redBaseIncome,
+            elapsedTime: gameState.elapsedTime,
+            gameOver: gameState.gameOver,
+            winner: gameState.winner,
+            mode: gameState.mode,
+            wave: gameState.wave,
+            waveMessageTimer: gameState.waveMessageTimer,
+            aiStatMult: gameState.aiStatMult,
+            customSettings: cloneForNetwork(gameState.customSettings),
+            isPaused,
+            speedMultiplier
+        };
+    }
+
+    function applyStateSnapshot(snapshot) {
+        if (!snapshot || networkState.role !== 'guest') return;
+        if (snapshot.snapshotSeq <= networkState.lastAppliedSnapshotSeq) return;
+        networkState.lastAppliedSnapshotSeq = snapshot.snapshotSeq;
+        gameState.blue = snapshot.blue;
+        gameState.red = snapshot.red;
+        gameState.units = snapshot.units || [];
+        unitIdCounter = snapshot.unitIdCounter || unitIdCounter;
+        gameState.blueGoldTimer = snapshot.blueGoldTimer;
+        gameState.redGoldTimer = snapshot.redGoldTimer;
+        gameState.blueBaseIncome = snapshot.blueBaseIncome;
+        gameState.redBaseIncome = snapshot.redBaseIncome;
+        gameState.elapsedTime = snapshot.elapsedTime;
+        gameState.gameOver = snapshot.gameOver;
+        gameState.winner = snapshot.winner;
+        gameState.mode = snapshot.mode;
+        gameState.wave = snapshot.wave;
+        gameState.waveMessageTimer = snapshot.waveMessageTimer;
+        gameState.aiStatMult = snapshot.aiStatMult;
+        gameState.customSettings = snapshot.customSettings;
+        isPaused = !!snapshot.isPaused;
+        speedMultiplier = snapshot.speedMultiplier || 1;
+        pauseBtn.textContent = isPaused ? '▶️' : '⏯️';
+        pauseBtn.classList.toggle('active', isPaused);
+        speedBtn.classList.toggle('active', speedMultiplier === 2);
+        gameState.started = true;
+        updateWaveDisplay();
+        refreshControllerUI();
+        updateOnlineControls();
+        updateAllUI();
+        updateOnlineDigest(createStateDigest());
+    }
+
     function sendNetworkMessage(message) {
         if (!networkState.conn || !networkState.conn.open) return false;
         networkState.conn.send({ ...message, protocolVersion: PROTOCOL_VERSION });
@@ -422,6 +496,11 @@
         const digest = createStateDigest();
         updateOnlineDigest(digest);
         sendNetworkMessage({ type: 'stateDigest', digest });
+    }
+
+    function sendStateSnapshot() {
+        if (networkState.role !== 'host' || !gameState.started) return;
+        sendNetworkMessage({ type: 'stateSnapshot', snapshot: createStateSnapshot(), digest: createStateDigest() });
     }
 
     function closeNetwork() {
@@ -437,6 +516,9 @@
         networkState.peerId = '';
         networkState.localSide = 'blue';
         networkState.digestTimer = 0;
+        networkState.snapshotTimer = 0;
+        networkState.snapshotSeq = 0;
+        networkState.lastAppliedSnapshotSeq = 0;
         updateNetworkStatus('未连接');
         updateOnlineDigest(null);
     }
@@ -458,7 +540,7 @@
 
     function createOnlineRoom() {
         if (typeof Peer === 'undefined') {
-            updateNetworkStatus('PeerJS 未加载，请确认网络可访问 CDN');
+            updateNetworkStatus('PeerJS 未加载，请确认 vendor/peerjs.min.js 是否存在');
             return;
         }
         closeNetwork();
@@ -483,7 +565,7 @@
 
     function joinOnlineRoom(peerId) {
         if (typeof Peer === 'undefined') {
-            updateNetworkStatus('PeerJS 未加载，请确认网络可访问 CDN');
+            updateNetworkStatus('PeerJS 未加载，请确认 vendor/peerjs.min.js 是否存在');
             return;
         }
         const targetId = peerId.trim();
@@ -509,6 +591,7 @@
         initGame('onlineVersus');
         sendNetworkMessage({ type: 'startGame' });
         sendStateDigest();
+        sendStateSnapshot();
         document.getElementById('onlineModal').classList.remove('show');
         resumeFromModal();
         updateNetworkStatus('联机对战已开始：你是蓝方房主');
@@ -525,6 +608,7 @@
             if (accepted) {
                 sendNetworkMessage({ type: 'commandAccepted', accepted: true, command, digest: createStateDigest() });
                 sendStateDigest();
+                sendStateSnapshot();
             }
             return accepted;
         }
@@ -568,17 +652,20 @@
             const response = { type: 'commandAccepted', accepted, command: { type: 'buyUnit', side: 'red', unitId: message.command.unitId }, digest: createStateDigest() };
             sendNetworkMessage(response);
             sendStateDigest();
+            sendStateSnapshot();
             return;
         }
         if (message.type === 'commandAccepted') {
-            if (gameState.matchType === 'onlineVersus' && networkState.role === 'guest' && message.accepted && message.command) {
-                tryBuyUnit(message.command.side, message.command.unitId);
-            }
             updateOnlineDigest(message.digest);
             return;
         }
         if (message.type === 'stateDigest') {
             updateOnlineDigest(message.digest);
+            return;
+        }
+        if (message.type === 'stateSnapshot') {
+            applyStateSnapshot(message.snapshot);
+            updateOnlineDigest(message.digest || createStateDigest());
             return;
         }
         if (message.type === 'error') {
@@ -1006,6 +1093,11 @@
         updateAllUI();
         if (gameState.matchType === 'onlineVersus' && networkState.role === 'host') {
             networkState.digestTimer += deltaTime;
+            networkState.snapshotTimer += deltaTime;
+            if (networkState.snapshotTimer >= 0.1) {
+                networkState.snapshotTimer = 0;
+                sendStateSnapshot();
+            }
             if (networkState.digestTimer >= 0.5) {
                 networkState.digestTimer = 0;
                 sendStateDigest();
@@ -1261,10 +1353,13 @@
         gameState.lastTimestamp = 0; gameState.started = true;
         cameraX = gameState.matchType==='onlineVersus' && networkState.localSide==='red' ? RED_BASE.x-canvas.width+50 : BLUE_BASE.x-50;
         cameraX = clamp(cameraX, 0, GAME_MAP_WIDTH-canvas.width);
-        isPaused = false; speedMultiplier = 1; aiTargetArmor = null; networkState.digestTimer = 0;
+        isPaused = false; speedMultiplier = 1; aiTargetArmor = null;
+        networkState.digestTimer = 0; networkState.snapshotTimer = 0; networkState.lastAppliedSnapshotSeq = 0;
+        if (gameState.matchType === 'onlineVersus' && networkState.role === 'host') networkState.snapshotSeq = 0;
         document.getElementById('pauseBtn').textContent = '⏯️'; document.getElementById('pauseBtn').classList.remove('active');
         document.getElementById('speedBtn').classList.remove('active');
         refreshControllerUI();
+        updateOnlineControls();
         updateWaveDisplay(); updateAllUI();
     }
 
@@ -1272,7 +1367,8 @@
         if (!gameState.lastTimestamp) gameState.lastTimestamp = ts;
         let dt = Math.min(0.05, (ts-gameState.lastTimestamp)/1000);
         gameState.lastTimestamp = ts;
-        if (gameState.started && !isPaused) updateGame(dt * speedMultiplier);
+        const shouldRunSimulation = gameState.matchType !== 'onlineVersus' || networkState.role !== 'guest';
+        if (gameState.started && !isPaused && shouldRunSimulation) updateGame(dt * speedMultiplier);
         drawBackground();
         if (gameState.started) { drawCrystal(BLUE_BASE, gameState.blue); drawCrystal(RED_BASE, gameState.red); drawUnits(); }
         drawUI(); if (gameState.started) drawMinimap();
@@ -1285,10 +1381,12 @@
     window.addEventListener('mouseup',()=>{ dragging=false; });
 
     const pauseBtn=document.getElementById('pauseBtn'), speedBtn=document.getElementById('speedBtn');
-    function togglePause(){ isPaused=!isPaused; pauseBtn.textContent=isPaused?'▶️':'⏯️'; pauseBtn.classList.toggle('active',isPaused); }
-    pauseBtn.addEventListener('click',togglePause);
-    speedBtn.addEventListener('click',()=>{ speedMultiplier=speedMultiplier===1?2:1; speedBtn.classList.toggle('active',speedMultiplier===2); });
-    document.addEventListener('keydown',(e)=>{ if(e.code==='Space'&&gameState.started){ e.preventDefault(); togglePause(); } });
+    function isRemoteOnlineClient() { return gameState.matchType === 'onlineVersus' && networkState.role === 'guest'; }
+    function sendHostSnapshotNow() { if (gameState.matchType === 'onlineVersus' && networkState.role === 'host') { sendStateDigest(); sendStateSnapshot(); } }
+    function togglePause(){ isPaused=!isPaused; pauseBtn.textContent=isPaused?'▶️':'⏯️'; pauseBtn.classList.toggle('active',isPaused); sendHostSnapshotNow(); }
+    pauseBtn.addEventListener('click',()=>{ if(!isRemoteOnlineClient()) togglePause(); });
+    speedBtn.addEventListener('click',()=>{ if(isRemoteOnlineClient()) return; speedMultiplier=speedMultiplier===1?2:1; speedBtn.classList.toggle('active',speedMultiplier===2); sendHostSnapshotNow(); });
+    document.addEventListener('keydown',(e)=>{ if(e.code==='Space'&&gameState.started&&!isRemoteOnlineClient()){ e.preventDefault(); togglePause(); } });
 
     let preModalPause=false;
     function pauseForModal(){ if(gameState.started&&!isPaused){ preModalPause=false; togglePause(); } else preModalPause=isPaused; }

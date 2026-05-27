@@ -119,6 +119,7 @@
         .diff-btn.endless { background: #6a0dad; }
         .diff-btn.custom { background: #2a5f6b; }
         .diff-btn.versus { background: #4b4f8f; }
+        .diff-btn.online { background: #1f6f78; }
         .diff-btn:hover, .custom-confirm:hover { filter: brightness(1.2); }
         .modal-close-x {
             position: absolute; top: 12px; right: 16px; font-size: 24px; color: #aaa;
@@ -126,6 +127,20 @@
         }
         .custom-row { display: flex; justify-content: space-between; margin: 8px 0; }
         .custom-row input { width: 80px; background: #2a2e3c; border: 1px solid #444; color: #fff; padding: 4px; border-radius: 6px; }
+        .online-row { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+        .online-row input {
+            flex: 1; min-width: 180px; background: #151820; border: 1px solid #444;
+            color: #fff; padding: 8px 10px; border-radius: 8px;
+        }
+        .online-action {
+            background: #2a5f6b; border: none; color: white; padding: 8px 14px;
+            border-radius: 18px; font-weight: bold; cursor: pointer;
+        }
+        .online-action:disabled { opacity: 0.45; cursor: not-allowed; }
+        .online-status {
+            margin-top: 12px; padding: 10px; border-radius: 10px; background: #151820;
+            color: #ddd; font-size: 13px; line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -174,11 +189,13 @@
 
 <div class="modal-overlay" id="helpModal"><div class="modal-content"><span class="modal-close-x" id="closeHelpX">&times;</span><h2>📖 游戏说明</h2><pre id="helpText"></pre></div></div>
 <div class="modal-overlay" id="logModal"><div class="modal-content"><span class="modal-close-x" id="closeLogX">&times;</span><h2>📜 更新日志</h2><pre id="logText"></pre></div></div>
-<div class="modal-overlay" id="diffModal"><div class="modal-content"><span class="modal-close-x" id="closeDiffX">&times;</span><h2>⚙️ 选择模式</h2><div style="text-align:center;margin:20px 0;"><button class="diff-btn easy" data-diff="easy">😊 简单</button><button class="diff-btn normal" data-diff="normal">⚔️ 普通</button><button class="diff-btn hell" data-diff="hell">💀 地狱</button><button class="diff-btn endless" data-diff="endless">♾️ 无尽</button><button class="diff-btn custom" data-diff="custom">🔧 自定义</button><button class="diff-btn versus" data-diff="localVersus">🎮 本地双人</button></div><p style="color:#aaa;font-size:14px;text-align:center;">简单/普通/地狱：AI策略不同<br>无尽：普通难度起，每轮AI属性+8%，每轮重置金币<br>自定义：自由设定AI属性与初始金币<br>本地双人：蓝红双方都由本地玩家控制</p></div></div>
+<div class="modal-overlay" id="diffModal"><div class="modal-content"><span class="modal-close-x" id="closeDiffX">&times;</span><h2>⚙️ 选择模式</h2><div style="text-align:center;margin:20px 0;"><button class="diff-btn easy" data-diff="easy">😊 简单</button><button class="diff-btn normal" data-diff="normal">⚔️ 普通</button><button class="diff-btn hell" data-diff="hell">💀 地狱</button><button class="diff-btn endless" data-diff="endless">♾️ 无尽</button><button class="diff-btn custom" data-diff="custom">🔧 自定义</button><button class="diff-btn versus" data-diff="localVersus">🎮 本地双人</button><button class="diff-btn online" data-diff="online">🌐 联机测试</button></div><p style="color:#aaa;font-size:14px;text-align:center;">简单/普通/地狱：AI策略不同<br>无尽：普通难度起，每轮AI属性+8%，每轮重置金币<br>自定义：自由设定AI属性与初始金币<br>本地双人：蓝红双方都由本地玩家控制<br>联机测试：PeerJS好友房间，房主蓝方、客机红方</p></div></div>
 <div class="modal-overlay" id="customModal"><div class="modal-content"><span class="modal-close-x" id="closeCustomX">&times;</span><h2>🔧 自定义AI</h2><div class="custom-row"><label>攻击力倍率</label><input id="customAtk" type="number" value="1.0" step="0.1" min="0.1"></div><div class="custom-row"><label>生命值倍率</label><input id="customHp" type="number" value="1.0" step="0.1" min="0.1"></div><div class="custom-row"><label>AI初始金币</label><input id="customGold" type="number" value="200" step="10" min="0"></div><button class="custom-confirm" id="customConfirm">开始游戏</button></div></div>
+<div class="modal-overlay" id="onlineModal"><div class="modal-content"><span class="modal-close-x" id="closeOnlineX">&times;</span><h2>🌐 联机测试</h2><div class="online-row"><button class="online-action" id="createOnlineRoomBtn">创建房间</button><input id="onlineRoomId" readonly placeholder="创建后显示房主ID"><button class="online-action" id="copyOnlineRoomBtn">复制ID</button></div><div class="online-row"><input id="joinOnlineRoomId" placeholder="输入房主ID"><button class="online-action" id="joinOnlineRoomBtn">加入房间</button></div><div class="online-row"><button class="online-action" id="startOnlineBtn" disabled>开始联机对战</button><button class="online-action" id="closeNetworkBtn">断开连接</button></div><div class="online-status"><div id="onlineStatus">未连接</div><div id="onlineDigest"></div></div><p style="color:#aaa;font-size:13px;margin-top:12px;text-align:center;">第二阶段只验证连接和出兵命令传输，完整画面同步将在第三阶段实现。</p></div></div>
 
 <audio id="bgm" src="bgm.mp3" loop></audio>
 
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
 <script>
 (function() {
     const canvas = document.getElementById('gameCanvas');
@@ -278,6 +295,17 @@
     let isPaused = false, speedMultiplier = 1;
     let currentDifficulty = null, aiTargetArmor = null, isFirstRun = true;
     let holdTimer = null, holdUnitId = null;
+    const PROTOCOL_VERSION = 1;
+    const networkState = {
+        role: 'none',
+        peer: null,
+        conn: null,
+        peerId: '',
+        status: '未连接',
+        localSide: 'blue',
+        protocolVersion: PROTOCOL_VERSION,
+        digestTimer: 0
+    };
 
     function getUnitConfig(id) { return UNITS.find(u => u.id === id); }
     function dist2D(a,b) { return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2); }
@@ -346,9 +374,222 @@
         return true;
     }
 
+    function updateNetworkStatus(text) {
+        networkState.status = text;
+        const el = document.getElementById('onlineStatus');
+        if (el) el.textContent = text;
+        updateOnlineControls();
+    }
+
+    function updateOnlineControls() {
+        const startBtn = document.getElementById('startOnlineBtn');
+        if (startBtn) startBtn.disabled = !(networkState.role === 'host' && networkState.conn && networkState.conn.open);
+        const roomInput = document.getElementById('onlineRoomId');
+        if (roomInput) roomInput.value = networkState.peerId || '';
+    }
+
+    function updateOnlineDigest(digest) {
+        const el = document.getElementById('onlineDigest');
+        if (!el) return;
+        if (!digest) {
+            el.textContent = '';
+            return;
+        }
+        el.textContent = `房主状态：蓝方 ${Math.ceil(digest.blueHP)} HP / ${Math.floor(digest.blueGold)} 金，红方 ${Math.ceil(digest.redHP)} HP / ${Math.floor(digest.redGold)} 金，单位 ${digest.unitCount}`;
+    }
+
+    function createStateDigest() {
+        return {
+            blueGold: gameState.blue ? gameState.blue.gold : 0,
+            redGold: gameState.red ? gameState.red.gold : 0,
+            blueHP: gameState.blue ? gameState.blue.baseHP : 0,
+            redHP: gameState.red ? gameState.red.baseHP : 0,
+            unitCount: gameState.units.length,
+            elapsedTime: gameState.elapsedTime,
+            gameOver: gameState.gameOver,
+            winner: gameState.winner
+        };
+    }
+
+    function sendNetworkMessage(message) {
+        if (!networkState.conn || !networkState.conn.open) return false;
+        networkState.conn.send({ ...message, protocolVersion: PROTOCOL_VERSION });
+        return true;
+    }
+
+    function sendStateDigest() {
+        if (networkState.role !== 'host' || !gameState.started) return;
+        const digest = createStateDigest();
+        updateOnlineDigest(digest);
+        sendNetworkMessage({ type: 'stateDigest', digest });
+    }
+
+    function closeNetwork() {
+        if (networkState.conn) {
+            networkState.conn.close();
+            networkState.conn = null;
+        }
+        if (networkState.peer) {
+            networkState.peer.destroy();
+            networkState.peer = null;
+        }
+        networkState.role = 'none';
+        networkState.peerId = '';
+        networkState.localSide = 'blue';
+        networkState.digestTimer = 0;
+        updateNetworkStatus('未连接');
+        updateOnlineDigest(null);
+    }
+
+    function bindConnection(conn) {
+        networkState.conn = conn;
+        conn.on('open', () => {
+            if (networkState.role === 'guest') {
+                sendNetworkMessage({ type: 'hello', client: 'mirage', protocolVersion: PROTOCOL_VERSION });
+                updateNetworkStatus('已连接房主，等待房主开始');
+            } else {
+                updateNetworkStatus('客机已连接，可以开始联机对战');
+            }
+        });
+        conn.on('data', handleNetworkMessage);
+        conn.on('close', () => updateNetworkStatus('连接已断开'));
+        conn.on('error', err => updateNetworkStatus(`连接错误：${err.type || err.message || '未知错误'}`));
+    }
+
+    function createOnlineRoom() {
+        if (typeof Peer === 'undefined') {
+            updateNetworkStatus('PeerJS 未加载，请确认网络可访问 CDN');
+            return;
+        }
+        closeNetwork();
+        networkState.role = 'host';
+        networkState.localSide = 'blue';
+        networkState.peer = new Peer();
+        updateNetworkStatus('正在创建房间...');
+        networkState.peer.on('open', id => {
+            networkState.peerId = id;
+            updateNetworkStatus('房间已创建，等待客机加入');
+        });
+        networkState.peer.on('connection', conn => {
+            if (networkState.conn && networkState.conn.open) {
+                conn.on('open', () => conn.send({ type: 'error', message: '房间已满', protocolVersion: PROTOCOL_VERSION }));
+                setTimeout(() => conn.close(), 200);
+                return;
+            }
+            bindConnection(conn);
+        });
+        networkState.peer.on('error', err => updateNetworkStatus(`PeerJS 错误：${err.type || err.message || '未知错误'}`));
+    }
+
+    function joinOnlineRoom(peerId) {
+        if (typeof Peer === 'undefined') {
+            updateNetworkStatus('PeerJS 未加载，请确认网络可访问 CDN');
+            return;
+        }
+        const targetId = peerId.trim();
+        if (!targetId) {
+            updateNetworkStatus('请输入房主ID');
+            return;
+        }
+        closeNetwork();
+        networkState.role = 'guest';
+        networkState.localSide = 'red';
+        networkState.peer = new Peer();
+        updateNetworkStatus('正在加入房间...');
+        networkState.peer.on('open', () => bindConnection(networkState.peer.connect(targetId, { reliable: true })));
+        networkState.peer.on('error', err => updateNetworkStatus(`PeerJS 错误：${err.type || err.message || '未知错误'}`));
+    }
+
+    function startOnlineMatch() {
+        if (networkState.role !== 'host' || !networkState.conn || !networkState.conn.open) {
+            updateNetworkStatus('需要先创建房间并等待客机连接');
+            return;
+        }
+        networkState.localSide = 'blue';
+        initGame('onlineVersus');
+        sendNetworkMessage({ type: 'startGame' });
+        sendStateDigest();
+        document.getElementById('onlineModal').classList.remove('show');
+        resumeFromModal();
+        updateNetworkStatus('联机对战已开始：你是蓝方房主');
+    }
+
+    function submitOnlineCommand(command) {
+        if (gameState.gameOver || isPaused || !gameState.started) return false;
+        if (gameState.controllers[command.side] !== 'local') return false;
+        const cfg = getUnitConfig(command.unitId);
+        const player = command.side === 'blue' ? gameState.blue : gameState.red;
+        if (!cfg || !player || player.gold < cfg.cost) return false;
+        if (networkState.role === 'host') {
+            const accepted = tryBuyUnit(command.side, command.unitId);
+            if (accepted) {
+                sendNetworkMessage({ type: 'commandAccepted', accepted: true, command, digest: createStateDigest() });
+                sendStateDigest();
+            }
+            return accepted;
+        }
+        if (networkState.role === 'guest') {
+            if (command.side !== networkState.localSide) return false;
+            return sendNetworkMessage({ type: 'command', command });
+        }
+        return false;
+    }
+
+    function handleNetworkMessage(message) {
+        if (!message || typeof message !== 'object') return;
+        if (message.type === 'hello') {
+            if (networkState.role !== 'host') return;
+            if (message.protocolVersion !== PROTOCOL_VERSION) {
+                sendNetworkMessage({ type: 'error', message: '协议版本不匹配' });
+                return;
+            }
+            sendNetworkMessage({ type: 'welcome', assignedSide: 'red', hostSide: 'blue' });
+            updateNetworkStatus('客机握手完成，可以开始联机对战');
+            return;
+        }
+        if (message.type === 'welcome') {
+            if (networkState.role !== 'guest') return;
+            networkState.localSide = message.assignedSide || 'red';
+            updateNetworkStatus('已加入房间，等待房主开始');
+            return;
+        }
+        if (message.type === 'startGame') {
+            if (networkState.role !== 'guest') return;
+            networkState.localSide = 'red';
+            initGame('onlineVersus');
+            document.getElementById('onlineModal').classList.remove('show');
+            resumeFromModal();
+            updateNetworkStatus('联机对战已开始：你是红方客机');
+            return;
+        }
+        if (message.type === 'command') {
+            if (gameState.matchType !== 'onlineVersus' || networkState.role !== 'host' || !message.command || message.command.side !== 'red') return;
+            const accepted = tryBuyUnit('red', message.command.unitId);
+            const response = { type: 'commandAccepted', accepted, command: { type: 'buyUnit', side: 'red', unitId: message.command.unitId }, digest: createStateDigest() };
+            sendNetworkMessage(response);
+            sendStateDigest();
+            return;
+        }
+        if (message.type === 'commandAccepted') {
+            if (gameState.matchType === 'onlineVersus' && networkState.role === 'guest' && message.accepted && message.command) {
+                tryBuyUnit(message.command.side, message.command.unitId);
+            }
+            updateOnlineDigest(message.digest);
+            return;
+        }
+        if (message.type === 'stateDigest') {
+            updateOnlineDigest(message.digest);
+            return;
+        }
+        if (message.type === 'error') {
+            updateNetworkStatus(`联机错误：${message.message || '未知错误'}`);
+        }
+    }
+
     function submitCommand(command) {
         if (!command || command.type !== 'buyUnit') return false;
         if (command.side !== 'blue' && command.side !== 'red') return false;
+        if (gameState.matchType === 'onlineVersus') return submitOnlineCommand(command);
         if (gameState.controllers[command.side] !== 'local') return false;
         return tryBuyUnit(command.side, command.unitId);
     }
@@ -763,6 +1004,13 @@
         if (updateUnits(deltaTime)) return;
         removeDeadUnits();
         updateAllUI();
+        if (gameState.matchType === 'onlineVersus' && networkState.role === 'host') {
+            networkState.digestTimer += deltaTime;
+            if (networkState.digestTimer >= 0.5) {
+                networkState.digestTimer = 0;
+                sendStateDigest();
+            }
+        }
     }
 
     // ====================== 新背景 ======================
@@ -849,7 +1097,7 @@
         if (gameState.gameOver) {
             ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,canvas.width,GAME_HEIGHT);
             ctx.fillStyle='#ffd966'; ctx.font='bold 46px "Segoe UI"'; ctx.textAlign='center';
-            const winnerText = gameState.matchType==='localVersus'
+            const winnerText = (gameState.matchType==='localVersus' || gameState.matchType==='onlineVersus')
                 ? (gameState.winner==='blue' ? '蓝方赢了！' : '红方赢了！')
                 : (gameState.winner==='blue' ? '你赢了！' : 'AI赢了');
             ctx.fillText(winnerText, canvas.width/2, GAME_HEIGHT/2);
@@ -920,8 +1168,17 @@
     }
 
     function refreshControllerUI() {
-        document.getElementById('blueTitle').textContent = gameState.matchType==='localVersus' ? '🔵 玩家1 (蓝方)' : '🔵 你 (蓝方)';
-        document.getElementById('redTitle').textContent = gameState.matchType==='localVersus' ? '🔴 玩家2 (红方)' : '🔴 AI (红方)';
+        let blueTitle = '🔵 你 (蓝方)';
+        let redTitle = '🔴 AI (红方)';
+        if (gameState.matchType === 'localVersus') {
+            blueTitle = '🔵 玩家1 (蓝方)';
+            redTitle = '🔴 玩家2 (红方)';
+        } else if (gameState.matchType === 'onlineVersus') {
+            blueTitle = networkState.role === 'host' ? '🔵 你·房主 (蓝方)' : '🔵 房主 (蓝方)';
+            redTitle = networkState.role === 'guest' ? '🔴 你·客机 (红方)' : '🔴 客机 (红方)';
+        }
+        document.getElementById('blueTitle').textContent = blueTitle;
+        document.getElementById('redTitle').textContent = redTitle;
         document.querySelectorAll('#blueUnits .unit-card, #redUnits .unit-card').forEach(card=>{
             card.classList.toggle('ai-card', gameState.controllers[card.dataset.side] !== 'local');
         });
@@ -990,17 +1247,21 @@
 
     function initGame(diff, custom=null) {
         currentDifficulty = diff;
-        gameState.matchType = diff==='localVersus' ? 'localVersus' : 'single';
-        gameState.controllers = gameState.matchType==='localVersus' ? { blue: 'local', red: 'local' } : { blue: 'local', red: 'ai' };
+        gameState.matchType = diff==='localVersus' ? 'localVersus' : (diff==='onlineVersus' ? 'onlineVersus' : 'single');
+        if (gameState.matchType === 'localVersus') gameState.controllers = { blue: 'local', red: 'local' };
+        else if (gameState.matchType === 'onlineVersus') gameState.controllers = networkState.role === 'guest' ? { blue: 'remote', red: 'local' } : { blue: 'local', red: 'remote' };
+        else gameState.controllers = { blue: 'local', red: 'ai' };
         gameState.mode = diff==='endless' ? 'endless' : 'normal';
         gameState.wave = 1; gameState.aiStatMult = 1.0; gameState.waveMessageTimer = 0;
         resetRoundEconomy();
-        gameState.customSettings = gameState.matchType==='localVersus' ? null : custom;
+        gameState.customSettings = gameState.matchType==='single' ? custom : null;
         gameState.blue = createPlayerState('blue');
         gameState.red = createPlayerState('red', gameState.customSettings?gameState.customSettings.startGold:200);
         gameState.units = []; gameState.gameOver = false; gameState.winner = null;
         gameState.lastTimestamp = 0; gameState.started = true;
-        cameraX = BLUE_BASE.x-50; isPaused = false; speedMultiplier = 1; aiTargetArmor = null;
+        cameraX = gameState.matchType==='onlineVersus' && networkState.localSide==='red' ? RED_BASE.x-canvas.width+50 : BLUE_BASE.x-50;
+        cameraX = clamp(cameraX, 0, GAME_MAP_WIDTH-canvas.width);
+        isPaused = false; speedMultiplier = 1; aiTargetArmor = null; networkState.digestTimer = 0;
         document.getElementById('pauseBtn').textContent = '⏯️'; document.getElementById('pauseBtn').classList.remove('active');
         document.getElementById('speedBtn').classList.remove('active');
         refreshControllerUI();
@@ -1197,6 +1458,9 @@ AI 单位生命值和攻击力提升到 1.2 倍，同时拥有更强的出兵压
 本地双人：
 蓝方和红方都由本地玩家控制，红方 AI 不会自动出兵。
 
+联机测试：
+使用 PeerJS 建立好友房间。房主是蓝方，客机是红方。当前阶段只验证连接、开始对战和出兵命令传输。
+
 
 七、实战建议
 
@@ -1246,6 +1510,7 @@ v3.0 经济重做、城墙、真伤、群伤`;
         btn.addEventListener('click',(e)=>{
             const diff=e.target.dataset.diff;
             if(diff==='custom'){ diffModal.classList.remove('show'); document.getElementById('customModal').classList.add('show'); return; }
+            if(diff==='online'){ diffModal.classList.remove('show'); document.getElementById('onlineModal').classList.add('show'); updateOnlineControls(); return; }
             diffModal.classList.remove('show'); resumeFromModal(); initGame(diff);
         });
     });
@@ -1260,6 +1525,20 @@ v3.0 经济重做、城墙、真伤、群伤`;
     });
     closeCustomX.addEventListener('click',()=>{ customModal.classList.remove('show'); resumeFromModal(); });
     customModal.addEventListener('click',(e)=>{ if(e.target===customModal){ customModal.classList.remove('show'); resumeFromModal(); } });
+
+    const onlineModal=document.getElementById('onlineModal'), closeOnlineX=document.getElementById('closeOnlineX');
+    document.getElementById('createOnlineRoomBtn').addEventListener('click',createOnlineRoom);
+    document.getElementById('joinOnlineRoomBtn').addEventListener('click',()=>joinOnlineRoom(document.getElementById('joinOnlineRoomId').value));
+    document.getElementById('startOnlineBtn').addEventListener('click',startOnlineMatch);
+    document.getElementById('closeNetworkBtn').addEventListener('click',closeNetwork);
+    document.getElementById('copyOnlineRoomBtn').addEventListener('click',()=>{
+        const input=document.getElementById('onlineRoomId');
+        if(!input.value) return;
+        input.select();
+        if(navigator.clipboard) navigator.clipboard.writeText(input.value).catch(()=>{});
+    });
+    closeOnlineX.addEventListener('click',()=>{ onlineModal.classList.remove('show'); resumeFromModal(); });
+    onlineModal.addEventListener('click',(e)=>{ if(e.target===onlineModal){ onlineModal.classList.remove('show'); resumeFromModal(); } });
 
     function firstRun(){ pauseForModal(); logModal.classList.add('show'); }
     firstRun();

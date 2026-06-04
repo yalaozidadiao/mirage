@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0, shrink-to-fit=yes">
-    <title>米拉奇战记 v4.0</title>
+    <title>米拉奇战记 v4.1</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -41,6 +41,10 @@
         }
         .unit-card:active { transform: translateY(1px); }
         .unit-card.cant-afford { opacity: 0.45; filter: grayscale(0.4); cursor: not-allowed; }
+        .unit-card.keyboard-selected { transform: translateY(-2px); }
+        .unit-card.keyboard-selected[data-side="blue"] { border-color: #75b7ff; box-shadow: 0 0 0 2px rgba(117,183,255,0.28), 0 7px 16px rgba(0,0,0,0.38); }
+        .unit-card.keyboard-selected[data-side="red"] { border-color: #ff8585; box-shadow: 0 0 0 2px rgba(255,133,133,0.28), 0 7px 16px rgba(0,0,0,0.38); }
+        .unit-card.cant-afford.keyboard-selected { opacity: 0.75; }
         .ai-card { pointer-events: none; cursor: default; opacity: 0.7; }
         .unit-icon { font-size: 26px; margin-bottom: 3px; }
         .unit-name { font-size: 12px; font-weight: 700; }
@@ -183,7 +187,7 @@
         </div>
         <button class="restart-btn" id="restartBtn">🔄 重新开始</button>
     </div>
-    <div class="legend">💡 长按兵种连续出兵 | 拖拽地图/小地图移动视角 | 空格暂停 | ❓查看说明</div>
+    <div class="legend">💡 本地双人：蓝方 WASD+F / 红方 方向键+Enter | 拖拽地图/小地图移动视角 | 空格暂停 | ❓查看说明</div>
 </div>
 <div id="tooltipContainer"></div>
 
@@ -295,6 +299,12 @@
     let isPaused = false, speedMultiplier = 1;
     let currentDifficulty = null, aiTargetArmor = null, isFirstRun = true;
     let holdTimer = null, holdUnitId = null;
+    const LOCAL_KEYBOARD_CONTROLS = {
+        blue: { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', buy: 'KeyF' },
+        red: { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', buy: 'Enter' }
+    };
+    const localKeyboardSelection = { blue: 0, red: 0 };
+    const localKeyboardBuyTimers = { blue: null, red: null };
     const PROTOCOL_VERSION = 1;
     const networkState = {
         role: 'none',
@@ -1200,7 +1210,7 @@
         }
         ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(canvas.width/2-90,6,180,30);
         ctx.fillStyle='#fff'; ctx.font='bold 16px "Segoe UI"'; ctx.textAlign='center';
-        ctx.fillText('米拉奇战记 v4.0', canvas.width/2,27);
+        ctx.fillText('米拉奇战记 v4.1', canvas.width/2,27);
     }
 
     const minimapCanvas = document.getElementById('minimapCanvas');
@@ -1235,8 +1245,9 @@
     });
     window.addEventListener('mouseup',()=>{minimapDrag=false;});
 
-    function createUnitCard(unit, side) {
+    function createUnitCard(unit, side, index) {
         const card=document.createElement('div'); card.className='unit-card'; card.dataset.unitId=unit.id; card.dataset.side=side;
+        card.dataset.unitIndex=index;
         card.innerHTML=`<span class="unit-icon">${unit.icon}</span><span class="unit-name">${unit.name}</span><span class="unit-cost">💰${unit.cost}</span>`;
         const startBuy=(e)=>{
             e.preventDefault();
@@ -1259,6 +1270,122 @@
         return card;
     }
 
+    function getUnitCardsForSide(side) {
+        return Array.from(document.querySelectorAll(`#${side}Units .unit-card`));
+    }
+
+    function refreshLocalKeyboardSelectionUI() {
+        document.querySelectorAll('#blueUnits .unit-card, #redUnits .unit-card').forEach(card=>{
+            const side = card.dataset.side;
+            const isSelected = gameState.matchType === 'localVersus'
+                && gameState.controllers[side] === 'local'
+                && Number(card.dataset.unitIndex) === localKeyboardSelection[side];
+            card.classList.toggle('keyboard-selected', isSelected);
+        });
+    }
+
+    function setLocalKeyboardSelection(side, index) {
+        const cards = getUnitCardsForSide(side);
+        if (!cards.length) return;
+        localKeyboardSelection[side] = (index + cards.length) % cards.length;
+        refreshLocalKeyboardSelectionUI();
+    }
+
+    function moveLocalKeyboardSelection(side, dx, dy) {
+        const cards = getUnitCardsForSide(side);
+        if (!cards.length) return;
+        const currentIndex = clamp(localKeyboardSelection[side], 0, cards.length-1);
+        if (dy === 0) {
+            setLocalKeyboardSelection(side, currentIndex + dx);
+            return;
+        }
+        const currentRect = cards[currentIndex].getBoundingClientRect();
+        const currentX = currentRect.left + currentRect.width/2;
+        const currentY = currentRect.top + currentRect.height/2;
+        const centers = cards.map((card, index)=>{
+            const rect = card.getBoundingClientRect();
+            return { index, x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+        });
+        const dir = Math.sign(dy);
+        let candidates = centers.filter(item => dir > 0 ? item.y > currentY + 4 : item.y < currentY - 4);
+        if (!candidates.length) {
+            const wrapY = dir > 0 ? Math.min(...centers.map(item=>item.y)) : Math.max(...centers.map(item=>item.y));
+            candidates = centers.filter(item => Math.abs(item.y - wrapY) < 4);
+        }
+        candidates.sort((a,b)=>{
+            const aScore = Math.abs(a.x-currentX) + Math.abs(a.y-currentY)*0.2;
+            const bScore = Math.abs(b.x-currentX) + Math.abs(b.y-currentY)*0.2;
+            return aScore - bScore;
+        });
+        if (candidates[0]) setLocalKeyboardSelection(side, candidates[0].index);
+    }
+
+    function submitSelectedLocalKeyboardUnit(side) {
+        const cards = getUnitCardsForSide(side);
+        const card = cards[localKeyboardSelection[side]];
+        return !!card && submitCommand({ type: 'buyUnit', side, unitId: card.dataset.unitId });
+    }
+
+    function stopLocalKeyboardBuy(side) {
+        if (localKeyboardBuyTimers[side]) {
+            clearInterval(localKeyboardBuyTimers[side]);
+            localKeyboardBuyTimers[side] = null;
+        }
+    }
+
+    function stopAllLocalKeyboardBuys() {
+        stopLocalKeyboardBuy('blue');
+        stopLocalKeyboardBuy('red');
+    }
+
+    function startLocalKeyboardBuy(side) {
+        if (localKeyboardBuyTimers[side]) return;
+        if (!submitSelectedLocalKeyboardUnit(side)) return;
+        localKeyboardBuyTimers[side] = setInterval(()=>{
+            if (!submitSelectedLocalKeyboardUnit(side)) stopLocalKeyboardBuy(side);
+        }, 150);
+    }
+
+    function localKeyboardSideForKey(code) {
+        for (let side of ['blue','red']) {
+            const controls = LOCAL_KEYBOARD_CONTROLS[side];
+            for (let action in controls) if (controls[action] === code) return { side, action };
+        }
+        return null;
+    }
+
+    function shouldHandleLocalKeyboard(target) {
+        if (!gameState.started || gameState.matchType !== 'localVersus') return false;
+        if (document.querySelector('.modal-overlay.show')) return false;
+        if (!target) return true;
+        return !['INPUT','TEXTAREA','SELECT'].includes(target.tagName);
+    }
+
+    function handleLocalKeyboardDown(e) {
+        const binding = localKeyboardSideForKey(e.code);
+        if (!binding || !shouldHandleLocalKeyboard(e.target)) return false;
+        e.preventDefault();
+        if (binding.action === 'buy') {
+            if (!e.repeat) startLocalKeyboardBuy(binding.side);
+            return true;
+        }
+        if (binding.action === 'left') moveLocalKeyboardSelection(binding.side, -1, 0);
+        else if (binding.action === 'right') moveLocalKeyboardSelection(binding.side, 1, 0);
+        else if (binding.action === 'up') moveLocalKeyboardSelection(binding.side, 0, -1);
+        else if (binding.action === 'down') moveLocalKeyboardSelection(binding.side, 0, 1);
+        return true;
+    }
+
+    function handleLocalKeyboardUp(e) {
+        const binding = localKeyboardSideForKey(e.code);
+        if (!binding || binding.action !== 'buy') return false;
+        const hadTimer = !!localKeyboardBuyTimers[binding.side];
+        stopLocalKeyboardBuy(binding.side);
+        if (!hadTimer && !shouldHandleLocalKeyboard(e.target)) return false;
+        e.preventDefault();
+        return true;
+    }
+
     function refreshControllerUI() {
         let blueTitle = '🔵 你 (蓝方)';
         let redTitle = '🔴 AI (红方)';
@@ -1274,17 +1401,19 @@
         document.querySelectorAll('#blueUnits .unit-card, #redUnits .unit-card').forEach(card=>{
             card.classList.toggle('ai-card', gameState.controllers[card.dataset.side] !== 'local');
         });
+        refreshLocalKeyboardSelectionUI();
     }
 
     function createUnitCards() {
         const blueC=document.getElementById('blueUnits'); blueC.innerHTML='';
-        UNITS.forEach(unit=>blueC.appendChild(createUnitCard(unit,'blue')));
+        UNITS.forEach((unit,index)=>blueC.appendChild(createUnitCard(unit,'blue',index)));
         const redC=document.getElementById('redUnits'); redC.innerHTML='';
-        UNITS.forEach(unit=>redC.appendChild(createUnitCard(unit,'red')));
+        UNITS.forEach((unit,index)=>redC.appendChild(createUnitCard(unit,'red',index)));
         refreshControllerUI();
     }
     window.addEventListener('mouseup',()=>{ if(holdTimer){clearInterval(holdTimer);holdTimer=null;} });
     window.addEventListener('touchend',()=>{ if(holdTimer){clearInterval(holdTimer);holdTimer=null;} });
+    window.addEventListener('blur',()=>{ if(holdTimer){clearInterval(holdTimer);holdTimer=null;} stopAllLocalKeyboardBuys(); });
 
     let tooltipDiv=null;
     function showTooltip(e,unit){
@@ -1333,6 +1462,7 @@
             const cfg=getUnitConfig(card.dataset.unitId);
             card.classList.toggle('cant-afford', cfg && gameState.red.gold<cfg.cost);
         });
+        refreshLocalKeyboardSelectionUI();
         const t = Math.floor(gameState.elapsedTime);
         document.getElementById('timerDisplay').textContent = `⏱ ${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
     }
@@ -1354,6 +1484,9 @@
         cameraX = gameState.matchType==='onlineVersus' && networkState.localSide==='red' ? RED_BASE.x-canvas.width+50 : BLUE_BASE.x-50;
         cameraX = clamp(cameraX, 0, GAME_MAP_WIDTH-canvas.width);
         isPaused = false; speedMultiplier = 1; aiTargetArmor = null;
+        stopAllLocalKeyboardBuys();
+        localKeyboardSelection.blue = 0;
+        localKeyboardSelection.red = 0;
         networkState.digestTimer = 0; networkState.snapshotTimer = 0; networkState.lastAppliedSnapshotSeq = 0;
         if (gameState.matchType === 'onlineVersus' && networkState.role === 'host') networkState.snapshotSeq = 0;
         document.getElementById('pauseBtn').textContent = '⏯️'; document.getElementById('pauseBtn').classList.remove('active');
@@ -1386,10 +1519,14 @@
     function togglePause(){ isPaused=!isPaused; pauseBtn.textContent=isPaused?'▶️':'⏯️'; pauseBtn.classList.toggle('active',isPaused); sendHostSnapshotNow(); }
     pauseBtn.addEventListener('click',()=>{ if(!isRemoteOnlineClient()) togglePause(); });
     speedBtn.addEventListener('click',()=>{ if(isRemoteOnlineClient()) return; speedMultiplier=speedMultiplier===1?2:1; speedBtn.classList.toggle('active',speedMultiplier===2); sendHostSnapshotNow(); });
-    document.addEventListener('keydown',(e)=>{ if(e.code==='Space'&&gameState.started&&!isRemoteOnlineClient()){ e.preventDefault(); togglePause(); } });
+    document.addEventListener('keydown',(e)=>{
+        if (handleLocalKeyboardDown(e)) return;
+        if(e.code==='Space'&&gameState.started&&!isRemoteOnlineClient()){ e.preventDefault(); togglePause(); }
+    });
+    document.addEventListener('keyup',handleLocalKeyboardUp);
 
     let preModalPause=false;
-    function pauseForModal(){ if(gameState.started&&!isPaused){ preModalPause=false; togglePause(); } else preModalPause=isPaused; }
+    function pauseForModal(){ stopAllLocalKeyboardBuys(); if(gameState.started&&!isPaused){ preModalPause=false; togglePause(); } else preModalPause=isPaused; }
     function resumeFromModal(){ if(gameState.started&&!preModalPause&&isPaused) togglePause(); }
 
     const bgm=document.getElementById('bgm'), musicBtn=document.getElementById('musicBtn');
@@ -1399,7 +1536,7 @@
     musicBtn.addEventListener('click',(e)=>{ e.stopPropagation(); if(musicPlaying){ bgm.pause(); musicPlaying=false; musicBtn.classList.remove('active'); } else { bgm.play().then(()=>{ musicPlaying=true; musicBtn.classList.add('active'); }).catch(()=>{}); } });
 
     const helpModal=document.getElementById('helpModal');
-    document.getElementById('helpText').textContent = `米拉奇战记 v4.0 教程
+    document.getElementById('helpText').textContent = `米拉奇战记 v4.1 教程
 ================================
 
 一、游戏目标
@@ -1419,6 +1556,8 @@
 出兵：
 - 点击蓝方兵种卡片即可购买并部署该单位。
 - 长按兵种卡片会连续出兵，直到金币不足、松开鼠标/手指、暂停或游戏结束。
+- 本地双人键盘：蓝方 W/A/S/D 选择兵种，F 出兵；红方方向键选择兵种，Enter 出兵。
+- 本地双人按住出兵键也会连续出兵。
 - 灰色兵种卡片表示当前金币不足。
 
 视野移动：
@@ -1555,6 +1694,7 @@ AI 单位生命值和攻击力提升到 1.2 倍，同时拥有更强的出兵压
 
 本地双人：
 蓝方和红方都由本地玩家控制，红方 AI 不会自动出兵。
+推荐使用键盘避免抢鼠标：蓝方 W/A/S/D + F，红方方向键 + Enter。
 
 联机对战：
 使用好友房间进行实时对战。房主是蓝方，客机是红方。房主创建房间并发送房主 ID，客机输入 ID 加入后，由房主开始对战。
@@ -1590,6 +1730,10 @@ AI 单位生命值和攻击力提升到 1.2 倍，同时拥有更强的出兵压
     const logModal=document.getElementById('logModal'), logText=document.getElementById('logText'), logBtn=document.getElementById('logBtn'), closeLogX=document.getElementById('closeLogX');
     logText.textContent = `米拉奇战记 · 更新日志
 ================================
+v4.1 (2026-06-04)
+- 本地双人新增双键盘操控：蓝方 WASD+F，红方方向键+Enter
+- 当前键盘选中的兵种会在卡片上高亮，按住出兵键可连续出兵
+
 v4.0 (2026-05-27)
 - 新增本地双人模式
 - 新增好友房间联机对战

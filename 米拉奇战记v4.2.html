@@ -1,0 +1,2701 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0, shrink-to-fit=yes">
+    <title>米拉奇战记 v4.2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #1a1e2b 0%, #2a2f3f 100%);
+            min-height: 100vh; display: flex; justify-content: center; align-items: center;
+            font-family: 'Segoe UI', 'Noto Sans', system-ui, sans-serif;
+            padding: 20px; margin: 0; user-select: none;
+        }
+        .game-wrapper {
+            background: #1e2230; border-radius: 28px; padding: 18px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; align-items: center;
+            position: relative;
+        }
+        canvas { display: block; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); width: 100%; height: auto; max-width: 1000px; }
+        .control-panel { width: 100%; display: flex; gap: 20px; margin-top: 14px; justify-content: center; flex-wrap: wrap; }
+        .player-zone {
+            flex: 1; min-width: 280px; background: rgba(20,22,30,0.85);
+            backdrop-filter: blur(10px); border-radius: 18px; padding: 12px 16px;
+            border: 1px solid rgba(255,255,255,0.12);
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .player-zone h3 { color: #ddd; font-size: 16px; text-align: center; margin-bottom: 2px; }
+        .info-row { display: flex; justify-content: center; gap: 16px; align-items: center; flex-wrap: wrap; }
+        .gold-display { background: #4a3f1e; color: #ffd966; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 15px; }
+        .income-display { background: #2a3f4a; color: #8dd; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+        .base-hp-display { background: #3a2030; color: #ff9090; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 13px; }
+        .unit-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .unit-card {
+            display: flex; flex-direction: column; align-items: center;
+            background: #2a2e3c; border-radius: 14px; padding: 10px 12px;
+            cursor: pointer; transition: all 0.15s ease; border: 2px solid transparent;
+            min-width: 66px; color: #eee; font-weight: bold;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3); position: relative;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .unit-card:active { transform: translateY(1px); }
+        .unit-card.cant-afford { opacity: 0.45; filter: grayscale(0.4); cursor: not-allowed; }
+        .unit-card.keyboard-selected { transform: translateY(-2px); }
+        .unit-card.keyboard-selected[data-side="blue"] { border-color: #75b7ff; box-shadow: 0 0 0 2px rgba(117,183,255,0.28), 0 7px 16px rgba(0,0,0,0.38); }
+        .unit-card.keyboard-selected[data-side="red"] { border-color: #ff8585; box-shadow: 0 0 0 2px rgba(255,133,133,0.28), 0 7px 16px rgba(0,0,0,0.38); }
+        .unit-card.cant-afford.keyboard-selected { opacity: 0.75; }
+        .ai-card { pointer-events: none; cursor: default; opacity: 0.7; }
+        .unit-icon { font-size: 26px; margin-bottom: 3px; }
+        .unit-name { font-size: 12px; font-weight: 700; }
+        .unit-cost { font-size: 11px; color: #ffbb2e; }
+        .restart-btn {
+            background: #3a4252; border: none; color: #fff; font-weight: bold;
+            font-size: 15px; padding: 10px 28px; border-radius: 28px;
+            cursor: pointer; margin-top: 12px; align-self: center;
+            box-shadow: 0 4px 0 #2a2f3b; letter-spacing: 1px;
+        }
+        .restart-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #2a2f3b; }
+        .legend { color: #888; font-size: 12px; text-align: center; margin-top: 6px; }
+        .tooltip {
+            position: fixed; z-index: 999; pointer-events: none;
+            background: #1e2230dd; color: #eee; border: 1px solid #ffbb2e;
+            border-radius: 12px; padding: 10px 14px; font-size: 13px;
+            line-height: 1.5; backdrop-filter: blur(6px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+            max-width: 260px;
+        }
+        .tooltip .stat { display: flex; justify-content: space-between; gap: 20px; }
+        .tooltip .label { color: #aaa; }
+        .tooltip .value { color: #fff; font-weight: bold; }
+        .tooltip .counter { margin-top: 6px; font-style: italic; }
+        .tooltip .strong { color: #ffaa00; }
+        .tooltip .weak { color: #88aaff; }
+        .tooltip .slogan { margin-top: 8px; font-style: italic; color: #ffbb2e; border-top: 1px solid #444; padding-top: 4px; }
+
+        .top-buttons {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 6px; gap: 8px;
+        }
+        .icon-btn {
+            background: #2a2e3c; border: none; color: #ddd; font-size: 18px;
+            width: 40px; height: 40px; border-radius: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+            transition: background 0.2s;
+        }
+        .icon-btn:hover { background: #3a4252; }
+        .icon-btn.active { color: #ffbb2e; background: #4a3f1e; }
+
+        .minimap-container {
+            flex: 1; margin: 0 10px; display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        #minimapCanvas {
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
+            background: #151820; cursor: pointer; width: 100%; max-width: 240px; height: 52px;
+        }
+        #waveDisplay { color: #ffbb2e; font-weight: bold; font-size: 15px; white-space: nowrap; }
+        #timerDisplay { color: #ccc; font-weight: bold; font-size: 15px; white-space: nowrap; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: flex; align-items: center;
+            justify-content: center; z-index: 1000; opacity: 0; pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .modal-overlay.show { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            background: #1e2230; border: 1px solid #ffbb2e; border-radius: 18px;
+            padding: 24px; max-width: 650px; width: 90%; max-height: 80vh;
+            overflow-y: auto; color: #ddd; box-shadow: 0 15px 40px rgba(0,0,0,0.7);
+            position: relative;
+        }
+        .modal-content h2 { color: #ffbb2e; margin-bottom: 14px; text-align: center; }
+        .modal-content pre { white-space: pre-wrap; font-size: 13px; line-height: 1.6; background: #151820; padding: 12px; border-radius: 12px; color: #ccc; }
+        .diff-btn, .custom-confirm {
+            background: #3a4252; border: none; color: white; padding: 8px 24px;
+            border-radius: 20px; font-weight: bold; cursor: pointer;
+            margin: 10px 5px 0;
+        }
+        .diff-btn.easy { background: #2a6b3a; }
+        .diff-btn.normal { background: #b8860b; }
+        .diff-btn.hell { background: #8b1a1a; }
+        .diff-btn.endless { background: #6a0dad; }
+        .diff-btn.custom { background: #2a5f6b; }
+        .diff-btn.versus { background: #4b4f8f; }
+        .diff-btn.online { background: #1f6f78; }
+        .diff-btn:hover, .custom-confirm:hover { filter: brightness(1.2); }
+        .modal-close-x {
+            position: absolute; top: 12px; right: 16px; font-size: 24px; color: #aaa;
+            cursor: pointer; background: none; border: none;
+        }
+        .custom-row { display: flex; justify-content: space-between; margin: 8px 0; }
+        .custom-row input { width: 80px; background: #2a2e3c; border: 1px solid #444; color: #fff; padding: 4px; border-radius: 6px; }
+        .online-row { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+        .online-row input {
+            flex: 1; min-width: 180px; background: #151820; border: 1px solid #444;
+            color: #fff; padding: 8px 10px; border-radius: 8px;
+        }
+        .online-action {
+            background: #2a5f6b; border: none; color: white; padding: 8px 14px;
+            border-radius: 18px; font-weight: bold; cursor: pointer;
+        }
+        .online-action:disabled { opacity: 0.45; cursor: not-allowed; }
+        .online-status {
+            margin-top: 12px; padding: 10px; border-radius: 10px; background: #151820;
+            color: #ddd; font-size: 13px; line-height: 1.5;
+        }
+        .rogue-route-summary {
+            display: flex; justify-content: center; flex-wrap: wrap; gap: 8px;
+            margin: 6px 0 14px; color: #aaa; font-size: 12px;
+        }
+        .rogue-route-pill {
+            background: #151820; border: 1px solid rgba(255,255,255,0.14);
+            color: #ddd; border-radius: 16px; padding: 4px 10px;
+            cursor: help;
+        }
+        .rogue-history-tooltip {
+            position: fixed; z-index: 1300; pointer-events: none;
+            background: #111722f2; border: 1px solid #ffbb2e; border-radius: 10px;
+            color: #dce5f7; padding: 10px 12px; max-width: 320px;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.55); font-size: 12px; line-height: 1.45;
+        }
+        .rogue-history-tooltip .title {
+            color: #ffbb2e; font-weight: 800; margin-bottom: 6px;
+        }
+        .rogue-history-tooltip .item { margin-top: 6px; }
+        .rogue-history-tooltip .name { color: #fff; font-weight: 800; }
+        .rogue-history-tooltip .desc { color: #bfc8da; }
+        .rogue-buff-panel {
+            position: absolute; left: 14px; top: 58px; z-index: 2;
+            width: 190px; max-height: 340px; overflow: hidden;
+            background: rgba(18,23,33,0.72); border: 1px solid rgba(255,255,255,0.13);
+            border-radius: 12px; padding: 10px 11px; color: #dce5f7;
+            backdrop-filter: blur(5px); pointer-events: none;
+            box-shadow: 0 8px 22px rgba(0,0,0,0.25);
+        }
+        .rogue-buff-panel .buff-title {
+            color: #ffbb2e; font-size: 13px; font-weight: 800; margin-bottom: 7px;
+        }
+        .rogue-buff-panel .buff-list {
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        .rogue-buff-panel .buff-item {
+            display: flex; align-items: center; gap: 6px; min-width: 0;
+            color: #edf3ff; font-size: 12px; line-height: 1.25;
+        }
+        .rogue-buff-panel .buff-count {
+            color: #8dd; font-weight: 800; margin-left: auto;
+        }
+        .rogue-buff-panel .buff-empty { color: #94a0b8; font-size: 12px; }
+        .rogue-wave-hint {
+            color: #8dd; font-size: 12px; font-weight: 700; white-space: nowrap;
+            background: rgba(18,24,32,0.6); border: 1px solid rgba(141,221,221,0.22);
+            border-radius: 12px; padding: 3px 8px;
+        }
+        .rogue-reward-grid {
+            display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px; margin-top: 14px;
+        }
+        .rogue-card {
+            background: #252b38; border: 1px solid rgba(255,255,255,0.14);
+            color: #eee; border-radius: 12px; padding: 14px;
+            min-height: 168px; text-align: left; cursor: pointer;
+            transition: transform 0.15s, border-color 0.15s, background 0.15s;
+        }
+        .rogue-card:hover {
+            transform: translateY(-2px); border-color: #ffbb2e; background: #303747;
+        }
+        .rogue-card .route {
+            color: #ffbb2e; font-size: 12px; font-weight: 700; margin-bottom: 8px;
+        }
+        .rogue-card .name {
+            color: #fff; font-size: 18px; font-weight: 800; margin-bottom: 8px;
+        }
+        .rogue-card .desc {
+            color: #cfd6e6; font-size: 13px; line-height: 1.5;
+        }
+        .rogue-card.common .route { color: #8dd; }
+        .rogue-card.core { border-color: #d49cff; }
+        .rogue-card.final { border-color: #ff7f50; }
+        @media (max-width: 760px) {
+            .rogue-reward-grid { grid-template-columns: 1fr; }
+            .rogue-card { min-height: 0; }
+        }
+    </style>
+</head>
+<body>
+<div style="display: flex; flex-direction: column; align-items: center;">
+    <div class="game-wrapper">
+        <div class="top-buttons">
+            <button class="icon-btn" id="musicBtn" title="音乐 开/关">🎵</button>
+            <button class="icon-btn" id="pauseBtn" title="暂停 / 继续 (空格)">⏯️</button>
+            <button class="icon-btn" id="speedBtn" title="2倍速">⏩</button>
+            <div class="minimap-container">
+                <canvas id="minimapCanvas" width="240" height="52"></canvas>
+                <span id="waveDisplay" style="display:none;">🌊 第1轮</span>
+                <span id="rogueWaveHint" class="rogue-wave-hint" style="display:none;"></span>
+                <span id="timerDisplay">⏱ 00:00</span>
+            </div>
+            <button class="icon-btn" id="helpBtn" title="游戏说明">❓</button>
+            <button class="icon-btn" id="logBtn" title="开发日志">📋</button>
+        </div>
+
+        <canvas id="gameCanvas" width="1000" height="460"></canvas>
+        <div id="rogueBuffPanel" class="rogue-buff-panel" style="display:none;"></div>
+
+        <div class="control-panel">
+            <div class="player-zone" id="blueZone">
+                <h3 id="blueTitle" style="color:#5b9cf5;">🔵 你 (蓝方)</h3>
+                <div class="info-row">
+                    <span class="gold-display" id="blueGold">💰 200</span>
+                    <span class="income-display" id="blueIncome">⏳ 400 10.0s</span>
+                    <span class="base-hp-display" id="blueHP">🏰 500</span>
+                </div>
+                <div class="unit-row" id="blueUnits"></div>
+            </div>
+            <div class="player-zone" id="redZone" style="opacity:0.9;">
+                <h3 id="redTitle" style="color:#f55b5b;">🔴 AI (红方)</h3>
+                <div class="info-row">
+                    <span class="gold-display" id="redGold">💰 200</span>
+                    <span class="income-display" id="redIncome">⏳ 400 10.0s</span>
+                    <span class="base-hp-display" id="redHP">🏰 500</span>
+                </div>
+                <div class="unit-row" id="redUnits"></div>
+            </div>
+        </div>
+        <button class="restart-btn" id="restartBtn">🔄 重新开始</button>
+    </div>
+    <div class="legend">💡 本地双人：蓝方 WASD+F / 红方 方向键+Enter | 拖拽地图/小地图移动视角 | 空格暂停 | ❓查看说明</div>
+</div>
+<div id="tooltipContainer"></div>
+
+<div class="modal-overlay" id="helpModal"><div class="modal-content"><span class="modal-close-x" id="closeHelpX">&times;</span><h2>📖 游戏说明</h2><pre id="helpText"></pre></div></div>
+<div class="modal-overlay" id="logModal"><div class="modal-content"><span class="modal-close-x" id="closeLogX">&times;</span><h2>📜 更新日志</h2><pre id="logText"></pre></div></div>
+<div class="modal-overlay" id="diffModal"><div class="modal-content"><span class="modal-close-x" id="closeDiffX">&times;</span><h2>⚙️ 选择模式</h2><div style="text-align:center;margin:20px 0;"><button class="diff-btn easy" data-diff="easy">😊 简单</button><button class="diff-btn normal" data-diff="normal">⚔️ 普通</button><button class="diff-btn hell" data-diff="hell">💀 地狱</button><button class="diff-btn endless" data-diff="endless">♾️ 无尽</button><button class="diff-btn custom" data-diff="custom">🔧 自定义</button><button class="diff-btn versus" data-diff="localVersus">🎮 本地双人</button><button class="diff-btn online" data-diff="online">🌐 联机对战</button></div><p style="color:#aaa;font-size:14px;text-align:center;">简单/普通/地狱：AI策略不同<br>无尽：通关指定轮次获得三选一奖励，AI仍每轮属性+8%<br>自定义：自由设定AI属性与初始金币<br>本地双人：蓝红双方都由本地玩家控制<br>联机对战：好友房间，房主蓝方、客机红方</p></div></div>
+<div class="modal-overlay" id="customModal"><div class="modal-content"><span class="modal-close-x" id="closeCustomX">&times;</span><h2>🔧 自定义AI</h2><div class="custom-row"><label>攻击力倍率</label><input id="customAtk" type="number" value="1.0" step="0.1" min="0.1"></div><div class="custom-row"><label>生命值倍率</label><input id="customHp" type="number" value="1.0" step="0.1" min="0.1"></div><div class="custom-row"><label>AI初始金币</label><input id="customGold" type="number" value="200" step="10" min="0"></div><button class="custom-confirm" id="customConfirm">开始游戏</button></div></div>
+<div class="modal-overlay" id="onlineModal"><div class="modal-content"><span class="modal-close-x" id="closeOnlineX">&times;</span><h2>🌐 联机对战</h2><div class="online-row"><button class="online-action" id="createOnlineRoomBtn">创建房间</button><input id="onlineRoomId" readonly placeholder="创建后显示房主ID"><button class="online-action" id="copyOnlineRoomBtn">复制ID</button></div><div class="online-row"><input id="joinOnlineRoomId" placeholder="输入房主ID"><button class="online-action" id="joinOnlineRoomBtn">加入房间</button></div><div class="online-row"><button class="online-action" id="startOnlineBtn" disabled>开始联机对战</button><button class="online-action" id="closeNetworkBtn">断开连接</button></div><div class="online-status"><div id="onlineStatus">未连接</div><div id="onlineDigest"></div></div><p style="color:#aaa;font-size:13px;margin-top:12px;text-align:center;">房主创建房间并发送 ID，好友加入后由房主开始对战。校园网等严格网络可能需要更换热点或其他网络。</p></div></div>
+<div class="modal-overlay" id="rogueRewardModal"><div class="modal-content"><h2 id="rogueRewardTitle">远征奖励</h2><div class="rogue-route-summary" id="rogueRouteSummary"></div><p style="color:#aaa;font-size:13px;text-align:center;">选择一张奖励牌，构筑你的无尽远征路线。</p><div class="rogue-reward-grid" id="rogueRewardCards"></div></div></div>
+
+<audio id="bgm" src="bgm.mp3" loop></audio>
+
+<script src="vendor/peerjs.min.js"></script>
+<script>
+(function() {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const GAME_MAP_WIDTH = 2000;
+    const GAME_HEIGHT = 460;
+    const MAP_PADDING = 22;
+    const BLUE_BASE = { x: 100, y: GAME_HEIGHT/2 };
+    const RED_BASE = { x: GAME_MAP_WIDTH - 100, y: GAME_HEIGHT/2 };
+    const BASE_ATTACK_RANGE = 360;
+    const BASE_DAMAGE = 60;
+    const BASE_ATTACK_SPEED = 0.85;
+    const BLUE_SPAWN_X = BLUE_BASE.x + 30;
+    const RED_SPAWN_X = RED_BASE.x - 30;
+    const SPAWN_Y_MIN = MAP_PADDING+30, SPAWN_Y_MAX = GAME_HEIGHT-MAP_PADDING-30;
+    const SEPARATION_RADIUS = 26, SEPARATION_FORCE = 55;
+    const GOLD_INTERVAL = 10;
+    const BASE_GOLD_INCOME = 400;
+    const MAX_GOLD = 6000;
+
+    // 兵种数据 (按价格排序)
+    const UNITS = [
+        { id: 'jester', name: '弄臣', icon: '🤡', cost: 10, damage: 1, hp: 15, armor: 0, attackSpeed: 1.2, moveSpeed: 2.5, range: 38, armorType: 'light', slogan: '一万暴击！', trueDamage: true, critChance: 0.01, critDamage: 10000, targetPriority: 'highestCost' },
+        { id: 'recruit', name: '新兵', icon: '⚔️', cost: 20, damage: 8, hp: 55, armor: 0, attackSpeed: 0.8, moveSpeed: 1.6, range: 44, armorType: 'light', slogan: '人民战争的汪洋大海' },
+        { id: 'veteran', name: '老兵', icon: '🛡️', cost: 35, damage: 12, hp: 100, armor: 1, attackSpeed: 1.0, moveSpeed: 1.45, range: 46, armorType: 'heavy', slogan: '老兵不死……吗' },
+        { id: 'archer', name: '弓箭手', icon: '🏹', cost: 40, damage: 12, hp: 65, armor: 0, attackSpeed: 1.2, moveSpeed: 1.5, range: 180, armorType: 'light', slogan: '万箭齐发', trueDamage: true },
+        { id: 'wall', name: '城墙', icon: '🏯', cost: 45, damage: 5, hp: 220, armor: 1, attackSpeed: 2.0, moveSpeed: 0.6, range: 42, armorType: 'heavy', slogan: '不是，米拉奇有城墙这个英雄吗' },
+        { id: 'ninja', name: '忍者', icon: '🥷', cost: 50, damage: 22, hp: 70, armor: 0, attackSpeed: 0.5, moveSpeed: 2.6, range: 40, armorType: 'light', slogan: '吓我一跳我释放忍术！', special: { heavy: 1.3 } },
+        { id: 'samurai', name: '武士', icon: '⛩️', cost: 60, damage: 18, hp: 130, armor: 2, attackSpeed: 0.9, moveSpeed: 1.7, range: 48, armorType: 'heavy', slogan: 'Bushiroad?', special: { heavy: 1.3 } },
+        { id: 'nun', name: '修女', icon: '🧙', cost: 65, damage: 0, hp: 110, armor: 0, attackSpeed: 1.8, moveSpeed: 1.5, range: 170, armorType: 'magic', healer: true, healAmount: 15, slogan: '笨蛋奶妈' },
+        { id: 'assassin', name: '刺客', icon: '🗡️', cost: 70, damage: 25, hp: 70, armor: 0, attackSpeed: 0.4, moveSpeed: 3.0, range: 38, armorType: 'light', slogan: '他出了一个……名刀司命？！', special: { light: 1.3 }, targetPriority: 'ranged', deathImmune: true, immuneDuration: 0.5 },
+        { id: 'engineer', name: '土木工程师', icon: '🔨', cost: 70, damage: 5, hp: 25, armor: 0, attackSpeed: 1.5, moveSpeed: 1.3, range: 180, armorType: 'light', slogan: '莫小坤？', turretData: { hp: 50, ammo: 5, range: 200, attackSpeed: 1.0, percentDamage: 0.2 } },
+        { id: 'arcaneGuard', name: '奥术卫士', icon: '🧿', cost: 75, damage: 25, hp: 180, armor: 3, attackSpeed: 1.3, moveSpeed: 1.1, range: 50, armorType: 'magic', slogan: '我，最后的螃蟹' },
+        { id: 'mage', name: '魔法师', icon: '🔮', cost: 80, damage: 30, hp: 95, armor: 1, attackSpeed: 1.5, moveSpeed: 1.4, range: 200, armorType: 'magic', slogan: '知识就是力量', special: { heavy: 1.3, light: 1.3 } },
+        { id: 'knight', name: '铁甲骑兵', icon: '🐴', cost: 110, damage: 30, hp: 260, armor: 5, attackSpeed: 1.1, moveSpeed: 2.0, range: 50, armorType: 'heavy', slogan: '铁骑冲锋', special: { heavy: 1.3 } },
+        { id: 'vampire', name: '吸血鬼', icon: '⚰️', cost: 150, damage: 2, hp: 250, armor: 0, attackSpeed: 0.1, moveSpeed: 1.4, range: 40, armorType: 'magic', slogan: '唯一的缺点，是太过完美~', trueDamage: true, lifesteal: 2 },
+        { id: 'krypton', name: '克弱', icon: '💠', cost: 550, damage: 100, hp: 800, armor: 5, attackSpeed: 1.0, moveSpeed: 1.5, range: 55, armorType: 'heavy', slogan: '昔人已乘黄鹤去', special: { heavy: 1.3 }, aoe: 3 },
+        { id: 'orange', name: '橘皮', icon: '👑', cost: 1000, damage: 180, hp: 1500, armor: 8, attackSpeed: 0.8, moveSpeed: 1.3, range: 60, armorType: 'heavy', slogan: '闹够了没有？', special: { heavy: 1.5, light: 1.5, magic: 1.5 } }
+    ];
+
+    const ROGUE_ROUTES = {
+        swarm: { name: '人海', icon: '🌊' },
+        iron: { name: '铁壁', icon: '🛡️' },
+        arcane: { name: '术法', icon: '🔮' },
+        engineer: { name: '工程', icon: '🔨' },
+        elite: { name: '精英', icon: '👑' },
+        fate: { name: '命运', icon: '🎲' },
+        common: { name: '通用', icon: '⭐' }
+    };
+
+    const ROGUE_REWARD_NORMAL_WAVES = new Set([2, 4, 9, 12, 17, 20, 25, 27]);
+    const ROGUE_REWARD_CORE_WAVES = new Set([7, 14, 22]);
+    const ROGUE_REWARD_FINAL_WAVES = new Set([30]);
+    const ROGUE_LOW_COST = 60;
+    const ROGUE_HIGH_COST = 100;
+    const ROGUE_BOSS_COST = 500;
+
+    const ROGUE_CARDS = [
+        { id:'swarm_conscription', route:'swarm', tier:'normal', name:'征召令', desc:'每购买 5 个 60 金以下单位，免费生成 1 个新兵。' },
+        { id:'swarm_cheap_gear', route:'swarm', tier:'normal', name:'廉价军备', desc:'40 金及以下单位费用 -15%，生命 -8%。' },
+        { id:'swarm_militia', route:'swarm', tier:'normal', name:'民兵补给', desc:'每轮开始获得 3 个免费新兵。' },
+        { id:'swarm_light_rush', route:'swarm', tier:'normal', name:'薄甲快攻', desc:'轻甲单位移速 +15%，生命 -5%。' },
+        { id:'swarm_blue_wave', route:'swarm', tier:'core', name:'蓝色浪潮', desc:'每有 10 个蓝方单位，低费单位攻速 +8%，最多 +40%。' },
+        { id:'swarm_refund', route:'swarm', tier:'core', name:'战损返还', desc:'60 金以下单位死亡时返还 20% 费用。' },
+        { id:'swarm_people_war', route:'swarm', tier:'final', name:'人民战争', desc:'每购买 10 个低费单位，随机复制当前场上 1 个低费单位。' },
+
+        { id:'iron_forged', route:'iron', tier:'normal', name:'厚甲锻造', desc:'重甲单位生命 +18%。' },
+        { id:'iron_march', route:'iron', tier:'normal', name:'稳步推进', desc:'重甲单位移速 +10%。' },
+        { id:'iron_shield_wall', route:'iron', tier:'normal', name:'盾墙阵线', desc:'场上每有 1 个重甲单位，重甲受到伤害 -1%，最多 -20%。' },
+        { id:'iron_wall_protocol', route:'iron', tier:'normal', name:'城墙协议', desc:'城墙生命 +35%，死亡后造成小范围伤害。' },
+        { id:'iron_unyielding', route:'iron', tier:'core', name:'不屈', desc:'重甲单位低于 35% 生命时，获得 3 秒减伤，每个单位每轮一次。' },
+        { id:'iron_cavalry_siege', route:'iron', tier:'core', name:'铁骑压境', desc:'武士、铁甲骑兵、克弱对基地伤害 +25%。' },
+        { id:'iron_mobile_fortress', route:'iron', tier:'final', name:'移动堡垒', desc:'每轮第一个重甲单位获得双倍最大生命，但移速 -20%。' },
+
+        { id:'arcane_overheal', route:'arcane', tier:'normal', name:'余辉治疗', desc:'修女治疗溢出时转化为护盾。' },
+        { id:'arcane_blade', route:'arcane', tier:'normal', name:'奥术锋刃', desc:'魔法甲单位伤害 +12%。' },
+        { id:'arcane_armor_break', route:'arcane', tier:'normal', name:'法力回响', desc:'魔法师攻击有 20% 概率降低目标 1 点护甲，持续 4 秒。' },
+        { id:'arcane_blood_pact', route:'arcane', tier:'normal', name:'血契', desc:'吸血鬼击杀敌人后，本轮最大生命 +8。' },
+        { id:'arcane_sanctuary', route:'arcane', tier:'core', name:'圣域', desc:'每 20 秒，所有魔法甲单位恢复 8% 最大生命。' },
+        { id:'arcane_resonance', route:'arcane', tier:'core', name:'奥术共鸣', desc:'场上每有 1 个魔法甲单位，魔法甲单位攻速 +3%，最多 +30%。' },
+        { id:'arcane_night_ritual', route:'arcane', tier:'final', name:'永夜仪式', desc:'吸血鬼、修女、魔法师同时在场时，全体蓝方单位获得少量吸血。' },
+
+        { id:'engineer_turret_hp', route:'engineer', tier:'normal', name:'加固炮台', desc:'炮台生命 +50%。' },
+        { id:'engineer_ammo', route:'engineer', tier:'normal', name:'备用弹仓', desc:'炮台弹药 +2。' },
+        { id:'engineer_fast_build', route:'engineer', tier:'normal', name:'速建工艺', desc:'工程师首次接敌时立即放置炮台。' },
+        { id:'engineer_repair', route:'engineer', tier:'normal', name:'前线维修', desc:'工程师每 5 秒治疗附近炮台。' },
+        { id:'engineer_chain_site', route:'engineer', tier:'core', name:'连锁工地', desc:'炮台击杀敌人时，有 35% 概率返还 1 发弹药。' },
+        { id:'engineer_fieldworks', route:'engineer', tier:'core', name:'战地工事', desc:'每轮开始在蓝方前线生成 1 座临时炮台。' },
+        { id:'engineer_crew', route:'engineer', tier:'final', name:'钢铁施工队', desc:'每购买第 3 个工程师，额外生成 1 个免费工程师。' },
+
+        { id:'elite_subsidy', route:'elite', tier:'normal', name:'贵族补贴', desc:'每轮首次购买 100 金以上单位返还 30% 金币。' },
+        { id:'elite_training', route:'elite', tier:'normal', name:'精锐训练', desc:'100 金以上单位伤害 +15%，低费单位费用 +8%。' },
+        { id:'elite_shield', route:'elite', tier:'normal', name:'重金护卫', desc:'高费单位出生时获得 80 点护盾。' },
+        { id:'elite_ace', route:'elite', tier:'normal', name:'王牌登场', desc:'每轮第一个 500 金以上单位生命 +20%、攻速 +15%。' },
+        { id:'elite_few', route:'elite', tier:'core', name:'少数精锐', desc:'场上蓝方单位不超过 8 个时，全体蓝方伤害 +25%。' },
+        { id:'elite_invest', route:'elite', tier:'core', name:'王者投资', desc:'购买橘皮或克弱后，下一次收入 +300。' },
+        { id:'elite_final_weapon', route:'elite', tier:'final', name:'终局兵器', desc:'每轮第一个橘皮或克弱获得一次免死。' },
+
+        { id:'fate_lucky_hit', route:'fate', tier:'normal', name:'幸运一击', desc:'所有蓝方单位暴击率 +1%。' },
+        { id:'fate_jester', route:'fate', tier:'normal', name:'小丑戏法', desc:'弄臣暴击率 +1%，但费用 +5。' },
+        { id:'fate_gamble_buy', route:'fate', tier:'normal', name:'赌命出兵', desc:'购买单位时 15% 概率免费，15% 概率费用翻倍。' },
+        { id:'fate_assassin', route:'fate', tier:'normal', name:'名刀传承', desc:'刺客免死次数 +1，但费用 +20。' },
+        { id:'fate_wheel', route:'fate', tier:'core', name:'命运轮盘', desc:'每轮开始随机获得金币、基地治疗或免费单位。' },
+        { id:'fate_death_escape', route:'fate', tier:'core', name:'死里逃生', desc:'每轮第一次蓝方单位死亡时，随机触发治疗、爆炸、复制或返还金币。' },
+        { id:'fate_miracle', route:'fate', tier:'final', name:'奇迹之夜', desc:'每轮一次，基地生命低于 30% 时获得 1000 金币并全场攻速 +30%，持续 10 秒。' },
+
+        { id:'common_war_fund', route:'common', tier:'normal', name:'战备金', desc:'每轮开始金币 +80。' },
+        { id:'common_raise', route:'common', tier:'normal', name:'加薪法案', desc:'基础收入 +40。' },
+        { id:'common_vault', route:'common', tier:'normal', name:'金库扩建', desc:'金币上限 +1000。' },
+        { id:'common_repair_base', route:'common', tier:'normal', name:'修缮城墙', desc:'基地最大生命 +100，并立即治疗 100。' },
+        { id:'common_watchtower', route:'common', tier:'normal', name:'瞭望塔', desc:'基地攻击射程 +40。' },
+        { id:'common_ballista', route:'common', tier:'normal', name:'强弩塔', desc:'基地伤害 +15。' },
+        { id:'common_weapon', route:'common', tier:'normal', name:'锋利武器', desc:'全体蓝方单位伤害 +6%。' },
+        { id:'common_armor', route:'common', tier:'normal', name:'皮革护具', desc:'全体蓝方单位生命 +6%。' },
+        { id:'common_march', route:'common', tier:'normal', name:'行军训练', desc:'全体蓝方单位移速 +6%。' },
+        { id:'common_reschedule', route:'common', tier:'normal', name:'后勤改签', desc:'立即获得 500 金币，帮助下一轮调整构筑。' },
+        { id:'common_interest', route:'common', tier:'normal', name:'复利投资', desc:'每轮结束时，保留当前金币的 20%，最多保留 600。' },
+        { id:'common_unfallen', route:'common', tier:'core', name:'王城不落', desc:'基地每轮第一次受到致命伤害时，保留 1 点生命并恢复 150。' }
+    ];
+
+    function getDamageMultiplier(attackerType, defenderType, special = null) {
+        let mult = 1.0;
+        if (attackerType === 'heavy' && defenderType === 'light') mult = 1.3;
+        else if (attackerType === 'light' && defenderType === 'magic') mult = 1.3;
+        else if (attackerType === 'magic' && defenderType === 'heavy') mult = 1.3;
+        if (special && special[defenderType]) mult *= special[defenderType];
+        return mult;
+    }
+
+    function getIncomeBonusRatio(cost) {
+        if (cost <= 30) return 0.02;
+        if (cost <= 60) return 0.03;
+        if (cost <= 100) return 0.04;
+        if (cost <= 200) return 0.05;
+        return 0.06;
+    }
+
+    function getArmorTypeName(type) { return { light: '轻甲', heavy: '重甲', magic: '魔法甲' }[type] || type; }
+    function getCounterInfo(armorType) {
+        const map = { heavy: { strong: '轻甲', weak: '魔法甲' }, light: { strong: '魔法甲', weak: '重甲' }, magic: { strong: '重甲', weak: '轻甲' } };
+        return map[armorType] || { strong: '无', weak: '无' };
+    }
+    const STRONG_AGAINST = { light: 'heavy', magic: 'light', heavy: 'magic' };
+    const rng = { random: () => Math.random() };
+
+    function createPlayerState(side, startGold = 200) {
+        return {
+            side,
+            gold: startGold,
+            baseHP: 500,
+            color: side === 'blue' ? '#5b9cf5' : '#f55b5b',
+            basePos: side === 'blue' ? BLUE_BASE : RED_BASE,
+            attackCooldown: 0,
+            attackTarget: null,
+            attackAnim: 0
+        };
+    }
+
+    function createRogueEffects() {
+        return {
+            startGoldBonus: 0,
+            incomeBonus: 0,
+            goldCap: MAX_GOLD,
+            baseMaxHp: 500,
+            baseRangeBonus: 0,
+            baseDamageBonus: 0,
+            baseAttackSpeedBonus: 0,
+            baseDeathSave: false,
+            allDamageBonus: 0,
+            allHpBonus: 0,
+            allMoveBonus: 0,
+            lowCostDiscount: 0,
+            lowCostHpBonus: 0,
+            lowCostCostPenalty: 0,
+            lightMoveBonus: 0,
+            lightHpBonus: 0,
+            heavyHpBonus: 0,
+            heavyMoveBonus: 0,
+            wallHpBonus: 0,
+            magicDamageBonus: 0,
+            highCostDamageBonus: 0,
+            critBonus: 0,
+            jesterCostBonus: 0,
+            jesterCritBonus: 0,
+            assassinCostBonus: 0,
+            assassinDeathImmuneBonus: 0,
+            lowCostFreeEvery: 0,
+            startRecruitCount: 0,
+            blueWave: false,
+            lowCostDeathRefund: 0,
+            lowCostCopyEvery: 0,
+            shieldWall: false,
+            wallExplosion: false,
+            unyielding: false,
+            heavySiegeBonus: 0,
+            mobileFortress: false,
+            overhealShield: false,
+            armorBreak: false,
+            vampireKillHp: 0,
+            sanctuary: false,
+            magicSpeedPerUnit: 0,
+            nightRitual: false,
+            turretHpBonus: 0,
+            turretAmmoBonus: 0,
+            instantTurret: false,
+            turretRepair: false,
+            turretAmmoRefundChance: 0,
+            startTurret: false,
+            freeEngineerEvery: 0,
+            highCostFirstRefund: 0,
+            highCostShield: 0,
+            aceFirstSuper: false,
+            fewElite: false,
+            kingInvest: false,
+            bossDeathSave: false,
+            fateBuy: false,
+            fateWheel: false,
+            firstDeathChaos: false,
+            miracle: false,
+            preserveGoldRate: 0,
+            preserveGoldCap: 0
+        };
+    }
+
+    function createRogueRoundState() {
+        return {
+            lowCostPurchases: 0,
+            totalLowCostPurchases: 0,
+            engineerPurchases: 0,
+            highCostRefunded: false,
+            aceUsed: false,
+            mobileFortressUsed: false,
+            bossDeathSaveUsed: false,
+            baseDeathSaveUsed: false,
+            firstDeathChaosUsed: false,
+            miracleUsed: false,
+            sanctuaryTimer: 20,
+            turretRepairTimer: 5,
+            miracleTimer: 0
+        };
+    }
+
+    function createRogueState() {
+        return {
+            enabled: false,
+            selectedCardIds: [],
+            routeCounts: { swarm: 0, iron: 0, arcane: 0, engineer: 0, elite: 0, fate: 0, common: 0 },
+            cardEffects: createRogueEffects(),
+            pendingReward: false,
+            offeredCards: [],
+            pendingRewardTier: 'normal',
+            preservedGold: 0,
+            round: createRogueRoundState()
+        };
+    }
+
+    function createGameState() {
+        return {
+            blue: null, red: null, units: [],
+            gameOver: false, winner: null,
+            lastTimestamp: 0,
+            blueGoldTimer: GOLD_INTERVAL, redGoldTimer: GOLD_INTERVAL,
+            blueBaseIncome: BASE_GOLD_INCOME, redBaseIncome: BASE_GOLD_INCOME,
+            elapsedTime: 0, started: false,
+            matchType: 'single',
+            controllers: { blue: 'local', red: 'ai' },
+            mode: 'normal', wave: 1, waveMessageTimer: 0,
+            aiStatMult: 1.0, customSettings: null,
+            rogue: createRogueState()
+        };
+    }
+
+    let gameState = createGameState();
+    let unitIdCounter = 0;
+    let cameraX = BLUE_BASE.x - 50;
+    let isPaused = false, speedMultiplier = 1;
+    let currentDifficulty = null, aiTargetArmor = null, isFirstRun = true;
+    let holdTimer = null, holdUnitId = null;
+    const LOCAL_KEYBOARD_CONTROLS = {
+        blue: { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', buy: 'KeyF' },
+        red: { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', buy: 'Enter' }
+    };
+    const localKeyboardSelection = { blue: 0, red: 0 };
+    const localKeyboardBuyTimers = { blue: null, red: null };
+    const PROTOCOL_VERSION = 1;
+    const networkState = {
+        role: 'none',
+        peer: null,
+        conn: null,
+        peerId: '',
+        status: '未连接',
+        localSide: 'blue',
+        protocolVersion: PROTOCOL_VERSION,
+        digestTimer: 0,
+        snapshotTimer: 0,
+        snapshotSeq: 0,
+        lastAppliedSnapshotSeq: 0
+    };
+
+    function getUnitConfig(id) { return UNITS.find(u => u.id === id); }
+    function dist2D(a,b) { return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2); }
+    function normalize2D(dx,dy) { const len=Math.sqrt(dx*dx+dy*dy); return len<0.0001?{x:0,y:0}:{x:dx/len, y:dy/len}; }
+    function clamp(v,min,max) { return Math.max(min, Math.min(max, v)); }
+    function randomSpawnY() { return SPAWN_Y_MIN + rng.random()*(SPAWN_Y_MAX-SPAWN_Y_MIN); }
+    function isRogueEnabled() { return gameState.mode === 'endless' && gameState.rogue && gameState.rogue.enabled; }
+    function hasRogueCard(id) { return isRogueEnabled() && gameState.rogue.selectedCardIds.includes(id); }
+    function getRogueEffects() { return isRogueEnabled() ? gameState.rogue.cardEffects : createRogueEffects(); }
+    function addBlueGold(amount) {
+        if (!gameState.blue) return;
+        gameState.blue.gold = Math.min(gameState.blue.gold + amount, getGoldCap('blue'));
+    }
+    function getGoldCap(side) {
+        return side === 'blue' && isRogueEnabled() ? gameState.rogue.cardEffects.goldCap : MAX_GOLD;
+    }
+    function isLowCostUnit(cfg) { return cfg && cfg.cost <= ROGUE_LOW_COST; }
+    function isHighCostUnit(cfg) { return cfg && cfg.cost >= ROGUE_HIGH_COST; }
+    function isBossUnit(cfg) { return cfg && cfg.cost >= ROGUE_BOSS_COST; }
+    function getBlueUnitCount() { return gameState.units.filter(u=>u.side==='blue'&&u.hp>0).length; }
+    function getBlueMagicUnitCount() { return gameState.units.filter(u=>u.side==='blue'&&u.hp>0&&u.armorType==='magic').length; }
+    function getBlueHeavyUnitCount() { return gameState.units.filter(u=>u.side==='blue'&&u.hp>0&&u.armorType==='heavy').length; }
+    function getEffectiveArmor(u) { return Math.max(0, u.armor - (u.armorBreakTimer>0 ? 1 : 0)); }
+    function getUnitCost(cfg, side) {
+        if (!cfg) return Infinity;
+        let cost = cfg.cost;
+        if (side === 'blue' && isRogueEnabled()) {
+            const e = gameState.rogue.cardEffects;
+            if (cfg.cost <= 40) cost *= (1 - e.lowCostDiscount);
+            if (isLowCostUnit(cfg)) cost *= (1 + e.lowCostCostPenalty);
+            if (cfg.id === 'jester') cost += e.jesterCostBonus;
+            if (cfg.id === 'assassin') cost += e.assassinCostBonus;
+        }
+        return Math.max(1, Math.ceil(cost));
+    }
+    function applyShieldDamage(target, amount) {
+        let remaining = amount;
+        if (target.shield > 0) {
+            const blocked = Math.min(target.shield, remaining);
+            target.shield -= blocked;
+            remaining -= blocked;
+        }
+        target.hp -= remaining;
+    }
+    function dealDamageToUnit(target, amount, options = {}) {
+        if (target.side === 'blue' && isRogueEnabled()) {
+            const e = gameState.rogue.cardEffects;
+            if (e.shieldWall && target.armorType === 'heavy') {
+                amount *= (1 - Math.min(0.2, getBlueHeavyUnitCount() * 0.01));
+            }
+            if (target.rogueUnyieldingTimer > 0) amount *= 0.5;
+        }
+        amount = Math.max(1, Math.floor(amount));
+        if (options.bypassShield) target.hp -= amount;
+        else applyShieldDamage(target, amount);
+        if (target.side === 'blue' && isRogueEnabled() && gameState.rogue.cardEffects.unyielding && target.armorType === 'heavy'
+            && target.hp > 0 && target.hp / target.maxHp <= 0.35 && !target.rogueUnyieldingUsed) {
+            target.rogueUnyieldingUsed = true;
+            target.rogueUnyieldingTimer = 3;
+        }
+    }
+    function getUnitAttackCooldown(u) {
+        let speedFactor = 1;
+        if (u.side === 'blue' && isRogueEnabled()) {
+            const e = gameState.rogue.cardEffects;
+            const cfg = getUnitConfig(u.type);
+            if (e.blueWave && cfg && isLowCostUnit(cfg)) speedFactor += Math.min(0.4, Math.floor(getBlueUnitCount() / 10) * 0.08);
+            if (e.magicSpeedPerUnit && u.armorType === 'magic') speedFactor += Math.min(0.3, getBlueMagicUnitCount() * e.magicSpeedPerUnit);
+            if (gameState.rogue.round.miracleTimer > 0) speedFactor += 0.3;
+        }
+        return Math.max(0.05, u.attackSpeed / speedFactor);
+    }
+    function getBaseAttackRange(player) {
+        return BASE_ATTACK_RANGE + (player.side === 'blue' && isRogueEnabled() ? gameState.rogue.cardEffects.baseRangeBonus : 0);
+    }
+    function getBaseDamage(player) {
+        return BASE_DAMAGE + (player.side === 'blue' && isRogueEnabled() ? gameState.rogue.cardEffects.baseDamageBonus : 0);
+    }
+    function getBaseAttackCooldown(player) {
+        const bonus = player.side === 'blue' && isRogueEnabled() ? gameState.rogue.cardEffects.baseAttackSpeedBonus : 0;
+        return BASE_ATTACK_SPEED / (1 + bonus);
+    }
+
+    function getScaledUnitStats(cfg, side) {
+        let hp = cfg.hp;
+        let damage = cfg.damage;
+        if (side === 'red') {
+            if (currentDifficulty === 'hell') { hp = Math.floor(hp*1.2); damage = Math.floor(damage*1.2); }
+            if (gameState.mode === 'endless') { hp = Math.floor(hp*gameState.aiStatMult); damage = Math.floor(damage*gameState.aiStatMult); }
+            if (gameState.customSettings) { hp = Math.floor(hp*gameState.customSettings.hpMult); damage = Math.floor(damage*gameState.customSettings.atkMult); }
+        } else if (side === 'blue' && isRogueEnabled()) {
+            const e = gameState.rogue.cardEffects;
+            let hpMult = 1 + e.allHpBonus;
+            let damageMult = 1 + e.allDamageBonus;
+            if (isLowCostUnit(cfg)) hpMult += e.lowCostHpBonus;
+            if (cfg.armorType === 'light') hpMult += e.lightHpBonus;
+            if (cfg.armorType === 'heavy') hpMult += e.heavyHpBonus;
+            if (cfg.id === 'wall') hpMult += e.wallHpBonus;
+            if (cfg.armorType === 'magic') damageMult += e.magicDamageBonus;
+            if (isHighCostUnit(cfg)) damageMult += e.highCostDamageBonus;
+            hp = Math.max(1, Math.floor(hp * hpMult));
+            damage = Math.max(0, Math.floor(damage * damageMult));
+        }
+        return { hp, damage };
+    }
+
+    function spawnUnit(cfg, side) {
+        const { hp, damage } = getScaledUnitStats(cfg, side);
+        const unit = {
+            id: ++unitIdCounter, type: cfg.id,
+            x: side==='blue'?BLUE_SPAWN_X:RED_SPAWN_X, y: randomSpawnY(),
+            hp, maxHp: hp, damage, armor: cfg.armor,
+            attackSpeed: cfg.attackSpeed, moveSpeed: cfg.moveSpeed,
+            range: cfg.range, side, armorType: cfg.armorType,
+            healer: cfg.healer||false, healAmount: cfg.healAmount||0,
+            special: cfg.special||null, trueDamage: cfg.trueDamage||false,
+            aoe: cfg.aoe||0, targetPriority: cfg.targetPriority||null,
+            attackCooldown: 0, targetId: null, attackAnim: 0, attackTargetPos: null,
+            immuneTimer: 0, deathImmune: cfg.deathImmune ? 1 : 0,
+            critChance: cfg.critChance||0, critDamage: cfg.critDamage||0,
+            lifesteal: cfg.lifesteal||0, turretPlaced: false,
+            turretData: cfg.turretData ? { ...cfg.turretData } : null,
+            lifetime: cfg.turretData ? 60 : undefined,
+            shield: 0, armorBreakTimer: 0, rogueUnyieldingTimer: 0, rogueUnyieldingUsed: false
+        };
+        if (side === 'blue' && isRogueEnabled()) {
+            const e = gameState.rogue.cardEffects;
+            unit.moveSpeed *= (1 + e.allMoveBonus);
+            if (cfg.armorType === 'light') unit.moveSpeed *= (1 + e.lightMoveBonus);
+            if (cfg.armorType === 'heavy') unit.moveSpeed *= (1 + e.heavyMoveBonus);
+            unit.critChance += e.critBonus;
+            if (cfg.id === 'jester') unit.critChance += e.jesterCritBonus;
+            if (cfg.id === 'assassin') unit.deathImmune += e.assassinDeathImmuneBonus;
+            if (isHighCostUnit(cfg)) unit.shield += e.highCostShield;
+        }
+        return unit;
+    }
+
+    function createTurret(engineer, turretData) {
+        let hp = turretData.hp, ammo = turretData.ammo;
+        if (engineer.side === 'blue' && isRogueEnabled()) {
+            const e = gameState.rogue.cardEffects;
+            hp = Math.floor(hp * (1 + e.turretHpBonus));
+            ammo += e.turretAmmoBonus;
+        }
+        return {
+            id: ++unitIdCounter, type: 'turret',
+            x: engineer.x, y: engineer.y,
+            hp, maxHp: hp, damage: 0, armor: 0,
+            attackSpeed: turretData.attackSpeed, moveSpeed: 0,
+            range: turretData.range, side: engineer.side, armorType: 'magic',
+            healer: false, attackCooldown: 0, targetId: null,
+            attackAnim: 0, attackTargetPos: null,
+            ammo, maxAmmo: ammo,
+            percentDamage: turretData.percentDamage, turretPlaced: true,
+            immuneTimer: 0, lifetime: 60,
+            shield: 0, armorBreakTimer: 0, rogueUnyieldingTimer: 0, rogueUnyieldingUsed: false
+        };
+    }
+
+    function spawnFreeUnit(unitId, side) {
+        const cfg = getUnitConfig(unitId);
+        if (!cfg) return null;
+        const unit = spawnUnit(cfg, side);
+        gameState.units.push(unit);
+        return unit;
+    }
+
+    function applyRoguePostSpawn(unit, cfg) {
+        if (unit.side !== 'blue' || !isRogueEnabled()) return;
+        const e = gameState.rogue.cardEffects;
+        const round = gameState.rogue.round;
+        if (e.mobileFortress && cfg.armorType === 'heavy' && !round.mobileFortressUsed) {
+            round.mobileFortressUsed = true;
+            unit.maxHp *= 2;
+            unit.hp *= 2;
+            unit.moveSpeed *= 0.8;
+        }
+        if (e.aceFirstSuper && isBossUnit(cfg) && !round.aceUsed) {
+            round.aceUsed = true;
+            unit.maxHp = Math.floor(unit.maxHp * 1.2);
+            unit.hp = Math.floor(unit.hp * 1.2);
+            unit.attackSpeed /= 1.15;
+        }
+        if (e.bossDeathSave && isBossUnit(cfg) && !round.bossDeathSaveUsed) {
+            round.bossDeathSaveUsed = true;
+            unit.deathImmune += 1;
+        }
+        if (e.instantTurret && cfg.id === 'engineer' && !unit.turretPlaced) {
+            gameState.units.push(createTurret(unit, cfg.turretData));
+            unit.turretPlaced = true;
+        }
+    }
+
+    function applyRoguePurchaseEffects(unit, cfg, paidCost) {
+        if (!unit || unit.side !== 'blue' || !isRogueEnabled()) return;
+        const e = gameState.rogue.cardEffects;
+        const round = gameState.rogue.round;
+        if (isLowCostUnit(cfg)) {
+            round.lowCostPurchases++;
+            round.totalLowCostPurchases++;
+            if (e.lowCostFreeEvery && round.lowCostPurchases % e.lowCostFreeEvery === 0) spawnFreeUnit('recruit', 'blue');
+            if (e.lowCostCopyEvery && round.totalLowCostPurchases % e.lowCostCopyEvery === 0) {
+                const lowUnits = gameState.units.filter(u=>u.side==='blue'&&u.hp>0&&isLowCostUnit(getUnitConfig(u.type)));
+                if (lowUnits.length) {
+                    const picked = lowUnits[Math.floor(rng.random()*lowUnits.length)];
+                    spawnFreeUnit(picked.type, 'blue');
+                }
+            }
+        }
+        if (cfg.id === 'engineer' && e.freeEngineerEvery) {
+            round.engineerPurchases++;
+            if (round.engineerPurchases % e.freeEngineerEvery === 0) spawnFreeUnit('engineer', 'blue');
+        }
+        if (e.highCostFirstRefund && isHighCostUnit(cfg) && !round.highCostRefunded) {
+            round.highCostRefunded = true;
+            addBlueGold(Math.floor(paidCost * e.highCostFirstRefund));
+        }
+        if (e.kingInvest && (cfg.id === 'krypton' || cfg.id === 'orange')) {
+            gameState.blueBaseIncome += 300;
+        }
+    }
+
+    function tryBuyUnit(side, unitId) {
+        if (gameState.gameOver || isPaused || !gameState.started) return false;
+        const player = side==='blue'?gameState.blue:gameState.red;
+        const cfg = getUnitConfig(unitId);
+        const cost = getUnitCost(cfg, side);
+        if (!cfg || player.gold < cost) return false;
+        let paidCost = cost;
+        if (side === 'blue' && isRogueEnabled() && gameState.rogue.cardEffects.fateBuy) {
+            const roll = rng.random();
+            if (roll < 0.15) paidCost = 0;
+            else if (roll < 0.30) paidCost = cost * 2;
+            if (player.gold < paidCost) return false;
+        }
+        player.gold -= paidCost;
+        const unit = spawnUnit(cfg, side);
+        gameState.units.push(unit);
+        applyRoguePostSpawn(unit, cfg);
+        applyRoguePurchaseEffects(unit, cfg, paidCost);
+        const bonus = Math.floor(cfg.cost * getIncomeBonusRatio(cfg.cost));
+        if (side==='blue') gameState.blueBaseIncome += bonus;
+        else gameState.redBaseIncome += bonus;
+        updateAllUI();
+        return true;
+    }
+
+    function updateNetworkStatus(text) {
+        networkState.status = text;
+        const el = document.getElementById('onlineStatus');
+        if (el) el.textContent = text;
+        updateOnlineControls();
+    }
+
+    function updateOnlineControls() {
+        const startBtn = document.getElementById('startOnlineBtn');
+        if (startBtn) startBtn.disabled = !(networkState.role === 'host' && networkState.conn && networkState.conn.open);
+        const roomInput = document.getElementById('onlineRoomId');
+        if (roomInput) roomInput.value = networkState.peerId || '';
+        const remoteControlled = gameState.matchType === 'onlineVersus' && networkState.role === 'guest';
+        if (pauseBtn) pauseBtn.disabled = remoteControlled;
+        if (speedBtn) speedBtn.disabled = remoteControlled;
+        if (remoteControlled) {
+            pauseBtn.title = '联机客机由房主控制暂停';
+            speedBtn.title = '联机客机由房主控制速度';
+        } else {
+            pauseBtn.title = '暂停 / 继续 (空格)';
+            speedBtn.title = '2倍速';
+        }
+    }
+
+    function updateOnlineDigest(digest) {
+        const el = document.getElementById('onlineDigest');
+        if (!el) return;
+        if (!digest) {
+            el.textContent = '';
+            return;
+        }
+        el.textContent = `房主状态：蓝方 ${Math.ceil(digest.blueHP)} HP / ${Math.floor(digest.blueGold)} 金，红方 ${Math.ceil(digest.redHP)} HP / ${Math.floor(digest.redGold)} 金，单位 ${digest.unitCount}`;
+    }
+
+    function createStateDigest() {
+        return {
+            blueGold: gameState.blue ? gameState.blue.gold : 0,
+            redGold: gameState.red ? gameState.red.gold : 0,
+            blueHP: gameState.blue ? gameState.blue.baseHP : 0,
+            redHP: gameState.red ? gameState.red.baseHP : 0,
+            unitCount: gameState.units.length,
+            elapsedTime: gameState.elapsedTime,
+            gameOver: gameState.gameOver,
+            winner: gameState.winner
+        };
+    }
+
+    function cloneForNetwork(value) {
+        return JSON.parse(JSON.stringify(value));
+    }
+
+    function createStateSnapshot() {
+        return {
+            snapshotSeq: ++networkState.snapshotSeq,
+            blue: cloneForNetwork(gameState.blue),
+            red: cloneForNetwork(gameState.red),
+            units: cloneForNetwork(gameState.units),
+            unitIdCounter,
+            blueGoldTimer: gameState.blueGoldTimer,
+            redGoldTimer: gameState.redGoldTimer,
+            blueBaseIncome: gameState.blueBaseIncome,
+            redBaseIncome: gameState.redBaseIncome,
+            elapsedTime: gameState.elapsedTime,
+            gameOver: gameState.gameOver,
+            winner: gameState.winner,
+            mode: gameState.mode,
+            wave: gameState.wave,
+            waveMessageTimer: gameState.waveMessageTimer,
+            aiStatMult: gameState.aiStatMult,
+            customSettings: cloneForNetwork(gameState.customSettings),
+            isPaused,
+            speedMultiplier
+        };
+    }
+
+    function applyStateSnapshot(snapshot) {
+        if (!snapshot || networkState.role !== 'guest') return;
+        if (snapshot.snapshotSeq <= networkState.lastAppliedSnapshotSeq) return;
+        networkState.lastAppliedSnapshotSeq = snapshot.snapshotSeq;
+        gameState.blue = snapshot.blue;
+        gameState.red = snapshot.red;
+        gameState.units = snapshot.units || [];
+        unitIdCounter = snapshot.unitIdCounter || unitIdCounter;
+        gameState.blueGoldTimer = snapshot.blueGoldTimer;
+        gameState.redGoldTimer = snapshot.redGoldTimer;
+        gameState.blueBaseIncome = snapshot.blueBaseIncome;
+        gameState.redBaseIncome = snapshot.redBaseIncome;
+        gameState.elapsedTime = snapshot.elapsedTime;
+        gameState.gameOver = snapshot.gameOver;
+        gameState.winner = snapshot.winner;
+        gameState.mode = snapshot.mode;
+        gameState.wave = snapshot.wave;
+        gameState.waveMessageTimer = snapshot.waveMessageTimer;
+        gameState.aiStatMult = snapshot.aiStatMult;
+        gameState.customSettings = snapshot.customSettings;
+        isPaused = !!snapshot.isPaused;
+        speedMultiplier = snapshot.speedMultiplier || 1;
+        pauseBtn.textContent = isPaused ? '▶️' : '⏯️';
+        pauseBtn.classList.toggle('active', isPaused);
+        speedBtn.classList.toggle('active', speedMultiplier === 2);
+        gameState.started = true;
+        updateWaveDisplay();
+        refreshControllerUI();
+        updateOnlineControls();
+        updateAllUI();
+        updateOnlineDigest(createStateDigest());
+    }
+
+    function sendNetworkMessage(message) {
+        if (!networkState.conn || !networkState.conn.open) return false;
+        networkState.conn.send({ ...message, protocolVersion: PROTOCOL_VERSION });
+        return true;
+    }
+
+    function sendStateDigest() {
+        if (networkState.role !== 'host' || !gameState.started) return;
+        const digest = createStateDigest();
+        updateOnlineDigest(digest);
+        sendNetworkMessage({ type: 'stateDigest', digest });
+    }
+
+    function sendStateSnapshot() {
+        if (networkState.role !== 'host' || !gameState.started) return;
+        sendNetworkMessage({ type: 'stateSnapshot', snapshot: createStateSnapshot(), digest: createStateDigest() });
+    }
+
+    function closeNetwork() {
+        if (networkState.conn) {
+            networkState.conn.close();
+            networkState.conn = null;
+        }
+        if (networkState.peer) {
+            networkState.peer.destroy();
+            networkState.peer = null;
+        }
+        networkState.role = 'none';
+        networkState.peerId = '';
+        networkState.localSide = 'blue';
+        networkState.digestTimer = 0;
+        networkState.snapshotTimer = 0;
+        networkState.snapshotSeq = 0;
+        networkState.lastAppliedSnapshotSeq = 0;
+        updateNetworkStatus('未连接');
+        updateOnlineDigest(null);
+    }
+
+    function bindConnection(conn) {
+        networkState.conn = conn;
+        conn.on('open', () => {
+            if (networkState.role === 'guest') {
+                sendNetworkMessage({ type: 'hello', client: 'mirage', protocolVersion: PROTOCOL_VERSION });
+                updateNetworkStatus('已连接房主，等待房主开始');
+            } else {
+                updateNetworkStatus('客机已连接，可以开始联机对战');
+            }
+        });
+        conn.on('data', handleNetworkMessage);
+        conn.on('close', () => updateNetworkStatus('连接已断开'));
+        conn.on('error', err => updateNetworkStatus(`连接错误：${err.type || err.message || '未知错误'}`));
+    }
+
+    function createOnlineRoom() {
+        if (typeof Peer === 'undefined') {
+            updateNetworkStatus('PeerJS 未加载，请确认 vendor/peerjs.min.js 是否存在');
+            return;
+        }
+        closeNetwork();
+        networkState.role = 'host';
+        networkState.localSide = 'blue';
+        networkState.peer = new Peer();
+        updateNetworkStatus('正在创建房间...');
+        networkState.peer.on('open', id => {
+            networkState.peerId = id;
+            updateNetworkStatus('房间已创建，等待客机加入');
+        });
+        networkState.peer.on('connection', conn => {
+            if (networkState.conn && networkState.conn.open) {
+                conn.on('open', () => conn.send({ type: 'error', message: '房间已满', protocolVersion: PROTOCOL_VERSION }));
+                setTimeout(() => conn.close(), 200);
+                return;
+            }
+            bindConnection(conn);
+        });
+        networkState.peer.on('error', err => updateNetworkStatus(`PeerJS 错误：${err.type || err.message || '未知错误'}`));
+    }
+
+    function joinOnlineRoom(peerId) {
+        if (typeof Peer === 'undefined') {
+            updateNetworkStatus('PeerJS 未加载，请确认 vendor/peerjs.min.js 是否存在');
+            return;
+        }
+        const targetId = peerId.trim();
+        if (!targetId) {
+            updateNetworkStatus('请输入房主ID');
+            return;
+        }
+        closeNetwork();
+        networkState.role = 'guest';
+        networkState.localSide = 'red';
+        networkState.peer = new Peer();
+        updateNetworkStatus('正在加入房间...');
+        networkState.peer.on('open', () => bindConnection(networkState.peer.connect(targetId, { reliable: true })));
+        networkState.peer.on('error', err => updateNetworkStatus(`PeerJS 错误：${err.type || err.message || '未知错误'}`));
+    }
+
+    function startOnlineMatch() {
+        if (networkState.role !== 'host' || !networkState.conn || !networkState.conn.open) {
+            updateNetworkStatus('需要先创建房间并等待客机连接');
+            return;
+        }
+        networkState.localSide = 'blue';
+        initGame('onlineVersus');
+        sendNetworkMessage({ type: 'startGame' });
+        sendStateDigest();
+        sendStateSnapshot();
+        document.getElementById('onlineModal').classList.remove('show');
+        resumeFromModal();
+        updateNetworkStatus('联机对战已开始：你是蓝方房主');
+    }
+
+    function submitOnlineCommand(command) {
+        if (gameState.gameOver || isPaused || !gameState.started) return false;
+        if (gameState.controllers[command.side] !== 'local') return false;
+        const cfg = getUnitConfig(command.unitId);
+        const player = command.side === 'blue' ? gameState.blue : gameState.red;
+        if (!cfg || !player || player.gold < cfg.cost) return false;
+        if (networkState.role === 'host') {
+            const accepted = tryBuyUnit(command.side, command.unitId);
+            if (accepted) {
+                sendNetworkMessage({ type: 'commandAccepted', accepted: true, command, digest: createStateDigest() });
+                sendStateDigest();
+                sendStateSnapshot();
+            }
+            return accepted;
+        }
+        if (networkState.role === 'guest') {
+            if (command.side !== networkState.localSide) return false;
+            return sendNetworkMessage({ type: 'command', command });
+        }
+        return false;
+    }
+
+    function handleNetworkMessage(message) {
+        if (!message || typeof message !== 'object') return;
+        if (message.type === 'hello') {
+            if (networkState.role !== 'host') return;
+            if (message.protocolVersion !== PROTOCOL_VERSION) {
+                sendNetworkMessage({ type: 'error', message: '协议版本不匹配' });
+                return;
+            }
+            sendNetworkMessage({ type: 'welcome', assignedSide: 'red', hostSide: 'blue' });
+            updateNetworkStatus('客机握手完成，可以开始联机对战');
+            return;
+        }
+        if (message.type === 'welcome') {
+            if (networkState.role !== 'guest') return;
+            networkState.localSide = message.assignedSide || 'red';
+            updateNetworkStatus('已加入房间，等待房主开始');
+            return;
+        }
+        if (message.type === 'startGame') {
+            if (networkState.role !== 'guest') return;
+            networkState.localSide = 'red';
+            initGame('onlineVersus');
+            document.getElementById('onlineModal').classList.remove('show');
+            resumeFromModal();
+            updateNetworkStatus('联机对战已开始：你是红方客机');
+            return;
+        }
+        if (message.type === 'command') {
+            if (gameState.matchType !== 'onlineVersus' || networkState.role !== 'host' || !message.command || message.command.side !== 'red') return;
+            const accepted = tryBuyUnit('red', message.command.unitId);
+            const response = { type: 'commandAccepted', accepted, command: { type: 'buyUnit', side: 'red', unitId: message.command.unitId }, digest: createStateDigest() };
+            sendNetworkMessage(response);
+            sendStateDigest();
+            sendStateSnapshot();
+            return;
+        }
+        if (message.type === 'commandAccepted') {
+            updateOnlineDigest(message.digest);
+            return;
+        }
+        if (message.type === 'stateDigest') {
+            updateOnlineDigest(message.digest);
+            return;
+        }
+        if (message.type === 'stateSnapshot') {
+            applyStateSnapshot(message.snapshot);
+            updateOnlineDigest(message.digest || createStateDigest());
+            return;
+        }
+        if (message.type === 'error') {
+            updateNetworkStatus(`联机错误：${message.message || '未知错误'}`);
+        }
+    }
+
+    function submitCommand(command) {
+        if (!command || command.type !== 'buyUnit') return false;
+        if (command.side !== 'blue' && command.side !== 'red') return false;
+        if (gameState.matchType === 'onlineVersus') return submitOnlineCommand(command);
+        if (gameState.controllers[command.side] !== 'local') return false;
+        return tryBuyUnit(command.side, command.unitId);
+    }
+
+    function getRogueRewardTier(wave) {
+        if (ROGUE_REWARD_FINAL_WAVES.has(wave)) return 'final';
+        if (ROGUE_REWARD_CORE_WAVES.has(wave)) return 'core';
+        if (ROGUE_REWARD_NORMAL_WAVES.has(wave)) return 'normal';
+        if (wave > 30 && wave % 3 === 0) {
+            if ((wave - 30) % 12 === 0) return 'final';
+            if ((wave - 30) % 6 === 0) return 'core';
+            return 'normal';
+        }
+        return null;
+    }
+
+    function getNextRogueRewardWave(fromWave = gameState.wave) {
+        for (let wave = fromWave; wave <= fromWave + 60; wave++) {
+            if (getRogueRewardTier(wave)) return wave;
+        }
+        return null;
+    }
+
+    function getTierDisplayName(tier) {
+        return tier === 'final' ? '终局选择' : (tier === 'core' ? '核心选择' : '奖励选择');
+    }
+
+    function getSelectedRogueCards(route = null) {
+        if (!isRogueEnabled()) return [];
+        return gameState.rogue.selectedCardIds
+            .map(id => ROGUE_CARDS.find(card => card.id === id))
+            .filter(card => card && (!route || card.route === route));
+    }
+
+    function getRogueRouteDetails(route) {
+        const info = ROGUE_ROUTES[route];
+        const cards = getSelectedRogueCards(route);
+        if (!cards.length) return `<div class="title">${info.icon} ${info.name}</div><div class="desc">尚未选择该路线奖励。</div>`;
+        const items = cards.map(card => `<div class="item"><span class="name">${card.name}</span><div class="desc">${card.desc}</div></div>`).join('');
+        return `<div class="title">${info.icon} ${info.name} · ${cards.length} 张</div>${items}`;
+    }
+
+    function showRogueHistoryTooltip(e, route) {
+        if (!route || !ROGUE_ROUTES[route]) return;
+        let div = document.getElementById('rogueHistoryTooltip');
+        if (!div) {
+            div = document.createElement('div');
+            div.id = 'rogueHistoryTooltip';
+            div.className = 'rogue-history-tooltip';
+            document.body.appendChild(div);
+        }
+        div.innerHTML = getRogueRouteDetails(route);
+        div.style.display = 'block';
+        moveRogueHistoryTooltip(e);
+    }
+
+    function moveRogueHistoryTooltip(e) {
+        const div = document.getElementById('rogueHistoryTooltip');
+        if (!div || div.style.display === 'none') return;
+        let left = e.clientX + 14, top = e.clientY + 14;
+        const maxW = window.innerWidth - div.offsetWidth - 10;
+        const maxH = window.innerHeight - div.offsetHeight - 10;
+        if (left > maxW) left = e.clientX - div.offsetWidth - 12;
+        if (top > maxH) top = e.clientY - div.offsetHeight - 12;
+        div.style.left = Math.max(6, left) + 'px';
+        div.style.top = Math.max(6, top) + 'px';
+    }
+
+    function hideRogueHistoryTooltip() {
+        const div = document.getElementById('rogueHistoryTooltip');
+        if (div) div.style.display = 'none';
+    }
+
+    function getMainRogueRoute() {
+        let best = 'swarm', bestCount = -1;
+        for (let route of ['swarm','iron','arcane','engineer','elite','fate']) {
+            const count = gameState.rogue.routeCounts[route] || 0;
+            if (count > bestCount) { best = route; bestCount = count; }
+        }
+        if (bestCount <= 0) {
+            const routes = ['swarm','iron','arcane','engineer','elite','fate'];
+            return routes[Math.floor(rng.random()*routes.length)];
+        }
+        return best;
+    }
+
+    function tierRank(tier) { return tier === 'final' ? 3 : (tier === 'core' ? 2 : 1); }
+
+    function cardAllowedForTier(card, tier) {
+        if (tier === 'normal') return card.tier === 'normal';
+        if (tier === 'core') return card.tier === 'core';
+        return card.tier === 'final';
+    }
+
+    function pickRogueCard(filter, used, tier) {
+        let pool = ROGUE_CARDS.filter(card => !used.has(card.id) && !gameState.rogue.selectedCardIds.includes(card.id) && filter(card) && cardAllowedForTier(card, tier));
+        if (!pool.length && tier !== 'normal') {
+            pool = ROGUE_CARDS.filter(card => !used.has(card.id) && !gameState.rogue.selectedCardIds.includes(card.id) && filter(card) && tierRank(card.tier) <= tierRank(tier));
+        }
+        if (!pool.length) {
+            pool = ROGUE_CARDS.filter(card => !used.has(card.id) && !gameState.rogue.selectedCardIds.includes(card.id) && cardAllowedForTier(card, 'normal'));
+        }
+        if (!pool.length) return null;
+        return pool[Math.floor(rng.random()*pool.length)];
+    }
+
+    function generateRogueRewardCards(tier) {
+        const used = new Set();
+        const mainRoute = getMainRogueRoute();
+        const cards = [];
+        const first = pickRogueCard(card => card.route === mainRoute, used, tier);
+        if (first) { cards.push(first); used.add(first.id); }
+        const second = pickRogueCard(card => card.route !== mainRoute && card.route !== 'common', used, tier);
+        if (second) { cards.push(second); used.add(second.id); }
+        const third = pickRogueCard(card => card.route === 'common', used, tier);
+        if (third) { cards.push(third); used.add(third.id); }
+        while (cards.length < 3) {
+            const fallback = pickRogueCard(() => true, used, tier);
+            if (!fallback) break;
+            cards.push(fallback); used.add(fallback.id);
+        }
+        return cards;
+    }
+
+    function applyRogueCard(card) {
+        const rogue = gameState.rogue;
+        const e = rogue.cardEffects;
+        rogue.selectedCardIds.push(card.id);
+        rogue.routeCounts[card.route] = (rogue.routeCounts[card.route] || 0) + 1;
+        switch (card.id) {
+            case 'swarm_conscription': e.lowCostFreeEvery = 5; break;
+            case 'swarm_cheap_gear': e.lowCostDiscount += 0.15; e.lowCostHpBonus -= 0.08; break;
+            case 'swarm_militia': e.startRecruitCount += 3; break;
+            case 'swarm_light_rush': e.lightMoveBonus += 0.15; e.lightHpBonus -= 0.05; break;
+            case 'swarm_blue_wave': e.blueWave = true; break;
+            case 'swarm_refund': e.lowCostDeathRefund = 0.2; break;
+            case 'swarm_people_war': e.lowCostCopyEvery = 10; break;
+            case 'iron_forged': e.heavyHpBonus += 0.18; break;
+            case 'iron_march': e.heavyMoveBonus += 0.10; break;
+            case 'iron_shield_wall': e.shieldWall = true; break;
+            case 'iron_wall_protocol': e.wallExplosion = true; e.wallHpBonus += 0.35; break;
+            case 'iron_unyielding': e.unyielding = true; break;
+            case 'iron_cavalry_siege': e.heavySiegeBonus = 0.25; break;
+            case 'iron_mobile_fortress': e.mobileFortress = true; break;
+            case 'arcane_overheal': e.overhealShield = true; break;
+            case 'arcane_blade': e.magicDamageBonus += 0.12; break;
+            case 'arcane_armor_break': e.armorBreak = true; break;
+            case 'arcane_blood_pact': e.vampireKillHp = 8; break;
+            case 'arcane_sanctuary': e.sanctuary = true; break;
+            case 'arcane_resonance': e.magicSpeedPerUnit = 0.03; break;
+            case 'arcane_night_ritual': e.nightRitual = true; break;
+            case 'engineer_turret_hp': e.turretHpBonus += 0.5; break;
+            case 'engineer_ammo': e.turretAmmoBonus += 2; break;
+            case 'engineer_fast_build': e.instantTurret = true; break;
+            case 'engineer_repair': e.turretRepair = true; break;
+            case 'engineer_chain_site': e.turretAmmoRefundChance = 0.35; break;
+            case 'engineer_fieldworks': e.startTurret = true; break;
+            case 'engineer_crew': e.freeEngineerEvery = 3; break;
+            case 'elite_subsidy': e.highCostFirstRefund = 0.3; break;
+            case 'elite_training': e.highCostDamageBonus += 0.15; e.lowCostCostPenalty += 0.08; break;
+            case 'elite_shield': e.highCostShield += 80; break;
+            case 'elite_ace': e.aceFirstSuper = true; break;
+            case 'elite_few': e.fewElite = true; break;
+            case 'elite_invest': e.kingInvest = true; break;
+            case 'elite_final_weapon': e.bossDeathSave = true; break;
+            case 'fate_lucky_hit': e.critBonus += 0.01; break;
+            case 'fate_jester': e.jesterCritBonus += 0.01; e.jesterCostBonus += 5; break;
+            case 'fate_gamble_buy': e.fateBuy = true; break;
+            case 'fate_assassin': e.assassinDeathImmuneBonus += 1; e.assassinCostBonus += 20; break;
+            case 'fate_wheel': e.fateWheel = true; break;
+            case 'fate_death_escape': e.firstDeathChaos = true; break;
+            case 'fate_miracle': e.miracle = true; break;
+            case 'common_war_fund': e.startGoldBonus += 80; break;
+            case 'common_raise': e.incomeBonus += 40; break;
+            case 'common_vault': e.goldCap += 1000; break;
+            case 'common_repair_base':
+                e.baseMaxHp += 100;
+                gameState.blue.baseHP = Math.min(e.baseMaxHp, gameState.blue.baseHP + 100);
+                break;
+            case 'common_watchtower': e.baseRangeBonus += 40; break;
+            case 'common_ballista': e.baseDamageBonus += 15; break;
+            case 'common_weapon': e.allDamageBonus += 0.06; break;
+            case 'common_armor': e.allHpBonus += 0.06; break;
+            case 'common_march': e.allMoveBonus += 0.06; break;
+            case 'common_reschedule': addBlueGold(500); break;
+            case 'common_interest': e.preserveGoldRate = 0.2; e.preserveGoldCap = 600; break;
+            case 'common_unfallen': e.baseDeathSave = true; break;
+        }
+    }
+
+    function renderRogueRewardModal(cards, tier) {
+        const modal = document.getElementById('rogueRewardModal');
+        const title = document.getElementById('rogueRewardTitle');
+        const summary = document.getElementById('rogueRouteSummary');
+        const container = document.getElementById('rogueRewardCards');
+        const tierName = tier === 'final' ? '终局奖励' : (tier === 'core' ? '核心奖励' : '远征奖励');
+        title.textContent = `第 ${gameState.wave} 轮完成 · ${tierName}`;
+        const summaryHtml = Object.keys(ROGUE_ROUTES).map(route => {
+            const count = gameState.rogue.routeCounts[route] || 0;
+            if (count <= 0) return '';
+            const info = ROGUE_ROUTES[route];
+            return `<span class="rogue-route-pill" data-route="${route}">${info.icon} ${info.name} ${count}</span>`;
+        }).join('');
+        summary.innerHTML = summaryHtml || '<span class="rogue-route-pill">尚未选择路线</span>';
+        summary.querySelectorAll('[data-route]').forEach(pill => {
+            pill.addEventListener('mouseenter', e => showRogueHistoryTooltip(e, pill.dataset.route));
+            pill.addEventListener('mousemove', moveRogueHistoryTooltip);
+            pill.addEventListener('mouseleave', hideRogueHistoryTooltip);
+        });
+        container.innerHTML = '';
+        cards.forEach(card => {
+            const info = ROGUE_ROUTES[card.route];
+            const btn = document.createElement('button');
+            btn.className = `rogue-card ${card.route === 'common' ? 'common' : ''} ${card.tier}`;
+            btn.innerHTML = `<div class="route">${info.icon} ${info.name} · ${card.tier === 'final' ? '终局' : (card.tier === 'core' ? '核心' : '普通')}</div><div class="name">${card.name}</div><div class="desc">${card.desc}</div>`;
+            btn.addEventListener('click', () => chooseRogueReward(card.id));
+            container.appendChild(btn);
+        });
+        modal.classList.add('show');
+    }
+
+    function showRogueReward(tier) {
+        if (!isRogueEnabled() || gameState.rogue.pendingReward) return false;
+        gameState.rogue.pendingReward = true;
+        gameState.rogue.pendingRewardTier = tier;
+        gameState.rogue.offeredCards = generateRogueRewardCards(tier);
+        stopAllLocalKeyboardBuys();
+        if (gameState.rogue.cardEffects.preserveGoldRate > 0) {
+            gameState.rogue.preservedGold = Math.min(gameState.rogue.cardEffects.preserveGoldCap, Math.floor(gameState.blue.gold * gameState.rogue.cardEffects.preserveGoldRate));
+        }
+        if (!isPaused) togglePause();
+        renderRogueRewardModal(gameState.rogue.offeredCards, tier);
+        return true;
+    }
+
+    function chooseRogueReward(cardId) {
+        if (!isRogueEnabled() || !gameState.rogue.pendingReward) return;
+        const card = gameState.rogue.offeredCards.find(c => c.id === cardId);
+        if (!card) return;
+        applyRogueCard(card);
+        document.getElementById('rogueRewardModal').classList.remove('show');
+        gameState.rogue.pendingReward = false;
+        gameState.rogue.offeredCards = [];
+        startNextWave();
+        if (isPaused) togglePause();
+    }
+
+    function checkGameOver() {
+        if (gameState.blue.baseHP <= 0) {
+            if (isRogueEnabled() && gameState.rogue.cardEffects.baseDeathSave && !gameState.rogue.round.baseDeathSaveUsed) {
+                gameState.rogue.round.baseDeathSaveUsed = true;
+                gameState.blue.baseHP = Math.min(gameState.rogue.cardEffects.baseMaxHp, 151);
+                return false;
+            }
+            gameState.gameOver = true; gameState.winner = 'red'; return true;
+        }
+        if (gameState.red.baseHP <= 0) {
+            if (gameState.mode === 'endless') {
+                const tier = isRogueEnabled() ? getRogueRewardTier(gameState.wave) : null;
+                if (tier && showRogueReward(tier)) return false;
+                startNextWave(); return false;
+            }
+            else { gameState.gameOver = true; gameState.winner = 'blue'; return true; }
+        }
+        return false;
+    }
+
+    function resetRoundEconomy() {
+        gameState.blueGoldTimer = GOLD_INTERVAL;
+        gameState.redGoldTimer = GOLD_INTERVAL;
+        gameState.blueBaseIncome = BASE_GOLD_INCOME + (isRogueEnabled() ? gameState.rogue.cardEffects.incomeBonus : 0);
+        gameState.redBaseIncome = BASE_GOLD_INCOME;
+        gameState.elapsedTime = 0;
+    }
+
+    function applyRogueRoundStartEffects() {
+        if (!isRogueEnabled()) return;
+        const e = gameState.rogue.cardEffects;
+        for (let i=0; i<e.startRecruitCount; i++) spawnFreeUnit('recruit', 'blue');
+        if (e.startTurret) {
+            const turret = createTurret({ side:'blue', x:BLUE_SPAWN_X+80, y:randomSpawnY() }, getUnitConfig('engineer').turretData);
+            turret.lifetime = 45;
+            gameState.units.push(turret);
+        }
+        if (e.fateWheel) {
+            const roll = Math.floor(rng.random()*3);
+            if (roll === 0) addBlueGold(300);
+            else if (roll === 1) gameState.blue.baseHP = Math.min(e.baseMaxHp, gameState.blue.baseHP + 100);
+            else {
+                for (let i=0; i<3; i++) spawnFreeUnit('recruit', 'blue');
+            }
+        }
+    }
+
+    function startNextWave() {
+        gameState.wave++;
+        gameState.aiStatMult = 1 + (gameState.wave-1)*0.08;
+        const e = isRogueEnabled() ? gameState.rogue.cardEffects : null;
+        const preserved = isRogueEnabled() ? gameState.rogue.preservedGold : 0;
+        gameState.blue.gold = 200 + (e ? e.startGoldBonus : 0) + preserved;
+        gameState.blue.baseHP = e ? e.baseMaxHp : 500;
+        gameState.red.gold = 200; gameState.red.baseHP = 500;
+        gameState.units = [];
+        if (isRogueEnabled()) {
+            gameState.rogue.round = createRogueRoundState();
+            gameState.rogue.preservedGold = 0;
+        }
+        resetRoundEconomy();
+        applyRogueRoundStartEffects();
+        gameState.waveMessageTimer = 1.5;
+        updateWaveDisplay();
+        updateAllUI();
+    }
+
+    function updateWaveDisplay() {
+        const disp = document.getElementById('waveDisplay');
+        const hint = document.getElementById('rogueWaveHint');
+        disp.style.display = gameState.mode==='endless' ? 'inline' : 'none';
+        if (gameState.mode==='endless') disp.textContent = `🌊 第${gameState.wave}轮`;
+        if (hint) {
+            if (isRogueEnabled()) {
+                const nextWave = getNextRogueRewardWave();
+                if (nextWave === gameState.wave) {
+                    hint.textContent = `本轮可进行${getTierDisplayName(getRogueRewardTier(gameState.wave))}`;
+                } else if (nextWave) {
+                    hint.textContent = `${nextWave - gameState.wave}轮后可进行${getTierDisplayName(getRogueRewardTier(nextWave))}`;
+                } else {
+                    hint.textContent = '';
+                }
+                hint.style.display = hint.textContent ? 'inline' : 'none';
+            } else {
+                hint.style.display = 'none';
+            }
+        }
+    }
+
+    function updateRogueBuffPanel() {
+        const panel = document.getElementById('rogueBuffPanel');
+        if (!panel) return;
+        if (!gameState.started || !isRogueEnabled()) {
+            panel.style.display = 'none';
+            return;
+        }
+        const cards = getSelectedRogueCards();
+        const groupedRoutes = Object.keys(ROGUE_ROUTES)
+            .filter(route => route !== 'common' && (gameState.rogue.routeCounts[route] || 0) > 0)
+            .map(route => {
+                const info = ROGUE_ROUTES[route];
+                return `<div class="buff-item">${info.icon}<span>${info.name}</span><span class="buff-count">${gameState.rogue.routeCounts[route]}</span></div>`;
+            }).join('');
+        const recentCards = cards.slice(-8).reverse().map(card => {
+            const info = ROGUE_ROUTES[card.route];
+            return `<div class="buff-item" title="${card.desc}">${info.icon}<span>${card.name}</span></div>`;
+        }).join('');
+        panel.innerHTML = `
+            <div class="buff-title">远征增益</div>
+            <div class="buff-list">
+                ${groupedRoutes || '<div class="buff-empty">尚未获得路线奖励</div>'}
+                ${recentCards ? '<div style="height:1px;background:rgba(255,255,255,0.12);margin:3px 0;"></div>' + recentCards : ''}
+            </div>
+        `;
+        panel.style.display = 'block';
+    }
+
+    function baseAttackUpdate(player, enemyUnits, deltaTime) {
+        if (player.attackCooldown > 0) player.attackCooldown -= deltaTime;
+        if (player.attackAnim > 0) player.attackAnim -= deltaTime;
+        const baseRange = getBaseAttackRange(player);
+        if (!player.attackTarget || !enemyUnits.find(u => u.id===player.attackTarget && u.hp>0 && u.immuneTimer<=0 && dist2D(u, player.basePos)<=baseRange)) {
+            let closest = null, minDist = Infinity;
+            for (let u of enemyUnits) {
+                if (u.hp<=0 || u.immuneTimer>0) continue;
+                const d = dist2D(u, player.basePos);
+                if (d <= baseRange && d < minDist) { minDist = d; closest = u; }
+            }
+            player.attackTarget = closest ? closest.id : null;
+        }
+        if (player.attackTarget && player.attackCooldown <= 0) {
+            const target = enemyUnits.find(u => u.id===player.attackTarget);
+            if (target && target.hp>0 && target.immuneTimer<=0 && dist2D(target, player.basePos)<=baseRange) {
+                dealDamageToUnit(target, getBaseDamage(player));
+                player.attackCooldown = getBaseAttackCooldown(player);
+                player.attackAnim = 0.2;
+                player.lastAttackTargetPos = { x: target.x, y: target.y };
+                if (target.hp <= 0 && target.deathImmune > 0) {
+                    target.hp = 1; target.immuneTimer = 0.5; target.deathImmune = 0;
+                } else if (target.hp <= 0) {
+                    player.attackTarget = null;
+                }
+                if (checkGameOver()) return;
+            } else player.attackTarget = null;
+        }
+    }
+
+    function isRangedUnit(cfg) { return cfg && cfg.range > 60; }
+
+    function getAIUnitStats() {
+        const aiUnits = gameState.units.filter(u => u.side==='red' && u.hp>0);
+        let ranged=0, melee=0, nuns=0;
+        aiUnits.forEach(u => {
+            const cfg = getUnitConfig(u.type);
+            if (!cfg) return;
+            if (cfg.healer) nuns++;
+            else if (isRangedUnit(cfg)) ranged++;
+            else melee++;
+        });
+        const total = aiUnits.length||1;
+        return { ranged, melee, nuns, total, ratioRanged: ranged/total, ratioNuns: nuns/total };
+    }
+
+    function filterByBalance(units, stats) {
+        if (!units.length) return units;
+        let filtered = units;
+        if (stats.ratioRanged > 0.33) {
+            const melee = units.filter(u => !isRangedUnit(u) && !u.healer);
+            if (melee.length) filtered = melee;
+        }
+        if (stats.ratioNuns > 0.25) {
+            const noNun = filtered.filter(u => !u.healer);
+            if (noNun.length) filtered = noNun;
+        }
+        return filtered;
+    }
+
+    function pickUnitByPhase(player, elapsed) {
+        const affordable = UNITS.filter(u => u.cost <= player.gold);
+        if (!affordable.length) return null;
+        if (player.gold >= 500) {
+            const expensive = affordable.filter(u => u.cost >= 50);
+            if (expensive.length) {
+                const stats = getAIUnitStats();
+                let candidates = filterByBalance(expensive, stats);
+                if (!candidates.length) candidates = expensive;
+                return candidates[Math.floor(rng.random()*candidates.length)];
+            }
+        }
+        if (player.gold >= 250) {
+            const stats = getAIUnitStats();
+            let candidates = filterByBalance(affordable, stats);
+            if (!candidates.length) candidates = affordable;
+            return candidates.reduce((a,b)=>a.cost>b.cost?a:b);
+        }
+        let phase = 'early';
+        if (elapsed>120) phase='late';
+        else if (elapsed>60) phase='mid';
+        const stats = getAIUnitStats();
+        let pool = [];
+        const rand = rng.random();
+        if (phase==='early') {
+            if (player.gold>150) pool = affordable.filter(u=>u.cost>=50&&u.cost<=70);
+            else pool = rand<0.7 ? affordable.filter(u=>u.cost<=40) : affordable.filter(u=>u.cost>40&&u.cost<=65);
+        } else if (phase==='mid') {
+            if (rand<0.4) pool = affordable.filter(u=>u.cost>35&&u.cost<=70);
+            else if (rand<0.8) pool = affordable.filter(u=>u.cost<=35);
+            else pool = affordable.filter(u=>u.cost>70);
+        } else {
+            if (rand<0.5) pool = affordable.filter(u=>u.cost>=70);
+            else pool = affordable.filter(u=>u.cost>40&&u.cost<70);
+        }
+        if (!pool.length) pool = affordable;
+        pool = filterByBalance(pool, stats);
+        if (!pool.length) pool = affordable;
+        return pool[Math.floor(rng.random()*pool.length)];
+    }
+
+    function getCounterUnit(player) {
+        if (!aiTargetArmor) return null;
+        const neededType = STRONG_AGAINST[aiTargetArmor];
+        if (!neededType) return null;
+        const candidates = UNITS.filter(u => u.cost <= player.gold && u.armorType === neededType);
+        return candidates.length ? candidates[Math.floor(rng.random()*candidates.length)] : null;
+    }
+
+    function aiUpdate(deltaTime) {
+        gameState.aiTimer -= deltaTime;
+        if (gameState.aiTimer>0 && gameState.red.gold<250) return;
+        if (gameState.gameOver || isPaused || !gameState.started) return;
+        const red = gameState.red;
+        if (currentDifficulty!=='easy' && Math.floor(gameState.elapsedTime)%4===0 && Math.floor(gameState.elapsedTime-deltaTime)%4!==0) {
+            const blueUnits = gameState.units.filter(u => u.side==='blue' && u.hp>0);
+            if (blueUnits.length) {
+                const costByType = {};
+                blueUnits.forEach(u => {
+                    const cfg = getUnitConfig(u.type);
+                    if (!cfg || isRangedUnit(cfg)) return;
+                    costByType[u.armorType] = (costByType[u.armorType]||0) + cfg.cost;
+                });
+                let maxCost=0, targetType=null;
+                for (let t in costByType) if (costByType[t]>maxCost) { maxCost=costByType[t]; targetType=t; }
+                aiTargetArmor = targetType;
+            }
+        }
+        if (red.gold>=250) {
+            let chosen = null;
+            if (currentDifficulty!=='easy' && aiTargetArmor) chosen = getCounterUnit(red);
+            if (!chosen) chosen = pickUnitByPhase(red, gameState.elapsedTime);
+            if (chosen) { tryBuyUnit('red', chosen.id); gameState.aiTimer=0.3; return; }
+        }
+        if (currentDifficulty!=='easy' && aiTargetArmor) {
+            const counter = getCounterUnit(red);
+            if (counter && rng.random()<0.8) { tryBuyUnit('red', counter.id); gameState.aiTimer=0.5; return; }
+        }
+        const chosen = pickUnitByPhase(red, gameState.elapsedTime);
+        if (chosen) {
+            if (red.gold<150 && rng.random()<0.2) return;
+            tryBuyUnit('red', chosen.id);
+        }
+        gameState.aiTimer = 0.6+rng.random()*0.4;
+    }
+
+    function updateEconomy(deltaTime) {
+        gameState.elapsedTime += deltaTime;
+        gameState.blueGoldTimer -= deltaTime;
+        gameState.redGoldTimer -= deltaTime;
+        if (gameState.blueGoldTimer<=0) {
+            gameState.blue.gold = Math.min(gameState.blue.gold+gameState.blueBaseIncome, getGoldCap('blue'));
+            gameState.blueGoldTimer += GOLD_INTERVAL;
+        }
+        if (gameState.redGoldTimer<=0) {
+            gameState.red.gold = Math.min(gameState.red.gold+gameState.redBaseIncome, getGoldCap('red'));
+            gameState.redGoldTimer += GOLD_INTERVAL;
+        }
+        if (gameState.waveMessageTimer>0) gameState.waveMessageTimer -= deltaTime;
+    }
+
+    function updateBaseAttacks(deltaTime) {
+        baseAttackUpdate(gameState.blue, gameState.units.filter(u=>u.side==='red'&&u.hp>0), deltaTime);
+        baseAttackUpdate(gameState.red, gameState.units.filter(u=>u.side==='blue'&&u.hp>0), deltaTime);
+    }
+
+    function updateUnitTimers(deltaTime) {
+        for (let u of gameState.units) {
+            if (u.immuneTimer>0) u.immuneTimer -= deltaTime;
+            if (u.armorBreakTimer>0) u.armorBreakTimer -= deltaTime;
+            if (u.rogueUnyieldingTimer>0) u.rogueUnyieldingTimer -= deltaTime;
+            if (u.attackCooldown>0) u.attackCooldown -= deltaTime;
+            if (u.attackAnim>0) u.attackAnim -= deltaTime;
+            if (u.lifetime !== undefined) {
+                u.lifetime -= deltaTime;
+                if (u.lifetime <= 0) u.hp = 0;
+            }
+        }
+    }
+
+    function placeEngineerTurrets() {
+        const cfg = getUnitConfig('engineer');
+        for (let u of gameState.units) {
+            if (u.hp<=0 || u.type!=='engineer' || u.turretPlaced) continue;
+            const enemies = gameState.units.filter(e => e.side!==u.side && e.hp>0 && e.immuneTimer<=0 && dist2D(u,e)<=cfg.range);
+            if (enemies.length) {
+                gameState.units.push(createTurret(u, cfg.turretData));
+                u.turretPlaced = true;
+            }
+        }
+    }
+
+    function computeSeparation() {
+        const sepMap = new Map();
+        for (let u of gameState.units) sepMap.set(u.id, {vx:0,vy:0});
+        for (let i=0;i<gameState.units.length;i++) for (let j=i+1;j<gameState.units.length;j++) {
+            const a=gameState.units[i], b=gameState.units[j];
+            if (a.side!==b.side) continue;
+            const dx=a.x-b.x, dy=a.y-b.y, dist=Math.sqrt(dx*dx+dy*dy);
+            if (dist<SEPARATION_RADIUS && dist>0.001) {
+                const force = (SEPARATION_RADIUS-dist)/SEPARATION_RADIUS*SEPARATION_FORCE;
+                const nx=dx/dist, ny=dy/dist;
+                sepMap.get(a.id).vx+=nx*force; sepMap.get(a.id).vy+=ny*force;
+                sepMap.get(b.id).vx-=nx*force; sepMap.get(b.id).vy-=ny*force;
+            }
+        }
+        return sepMap;
+    }
+
+    function clampUnitPosition(u) {
+        u.x = clamp(u.x, MAP_PADDING, GAME_MAP_WIDTH-MAP_PADDING);
+        u.y = clamp(u.y, MAP_PADDING, GAME_HEIGHT-MAP_PADDING);
+    }
+
+    function moveToward(u, target, sepMap, deltaTime) {
+        const dir = normalize2D(target.x-u.x, target.y-u.y);
+        const sep = sepMap.get(u.id)||{vx:0,vy:0};
+        u.x += (dir.x*u.moveSpeed*60 + sep.vx)*deltaTime;
+        u.y += (dir.y*u.moveSpeed*60 + sep.vy)*deltaTime;
+    }
+
+    function applySeparationOnly(u, sepMap, deltaTime) {
+        const sep = sepMap.get(u.id)||{vx:0,vy:0};
+        u.x += sep.vx*deltaTime;
+        u.y += sep.vy*deltaTime;
+    }
+
+    function applyDeathProtection(target) {
+        if (target.hp<=0 && target.deathImmune>0) {
+            target.hp = 1;
+            target.immuneTimer = 0.5;
+            target.deathImmune = 0;
+            return true;
+        }
+        return false;
+    }
+
+    function selectTarget(u) {
+        let enemies = gameState.units.filter(e => e.side!==u.side && e.hp>0 && e.immuneTimer<=0);
+        if (!enemies.length) return null;
+        let candidates = enemies;
+        if (u.targetPriority==='ranged') {
+            const ranged = enemies.filter(e=>isRangedUnit(getUnitConfig(e.type)));
+            if (ranged.length) candidates = ranged;
+        } else if (u.targetPriority==='highestCost') {
+            candidates.sort((a,b)=>(getUnitConfig(b.type)?.cost||0)-(getUnitConfig(a.type)?.cost||0));
+        }
+        if (u.type==='turret') candidates.sort((a,b)=>b.maxHp-a.maxHp);
+        let closest=null, minDist=Infinity;
+        for (let e of candidates) {
+            const d=dist2D(u,e);
+            if (d<minDist) { minDist=d; closest=e; }
+        }
+        return closest;
+    }
+
+    function moveOrAttackBase(u, attackRange, sepMap, deltaTime) {
+        const enemyBase = u.side==='blue'?RED_BASE:BLUE_BASE;
+        if (u.moveSpeed>0 && dist2D(u, enemyBase)>attackRange) {
+            moveToward(u, enemyBase, sepMap, deltaTime);
+        } else if (u.moveSpeed>0 && dist2D(u, enemyBase)<=attackRange && u.attackCooldown<=0 && !u.healer && u.type!=='turret') {
+            let baseDamage = Math.max(1, u.damage-2);
+            if (u.side === 'blue' && isRogueEnabled() && gameState.rogue.cardEffects.heavySiegeBonus && ['samurai','knight','krypton'].includes(u.type)) {
+                baseDamage = Math.floor(baseDamage * (1 + gameState.rogue.cardEffects.heavySiegeBonus));
+            }
+            gameState[u.side==='blue'?'red':'blue'].baseHP -= baseDamage;
+            u.attackCooldown = getUnitAttackCooldown(u);
+            u.attackAnim = 0.15;
+            u.attackTargetPos = {x: enemyBase.x, y: enemyBase.y};
+            if (checkGameOver()) return true;
+        }
+        clampUnitPosition(u);
+        return false;
+    }
+
+    function handleUnitKill(attacker, target) {
+        if (!attacker || target.hp > 0) return;
+        if (attacker.side === 'blue' && target.side === 'red' && isRogueEnabled()) {
+            const e = gameState.rogue.cardEffects;
+            if (e.vampireKillHp && attacker.type === 'vampire') {
+                attacker.maxHp += e.vampireKillHp;
+                attacker.hp += e.vampireKillHp;
+            }
+            if (e.turretAmmoRefundChance && attacker.type === 'turret' && rng.random() < e.turretAmmoRefundChance) {
+                attacker.ammo = Math.min(attacker.maxAmmo, attacker.ammo + 1);
+            }
+        }
+    }
+
+    function attackWithTurret(u, target) {
+        if (u.ammo<=0) return;
+        dealDamageToUnit(target, Math.max(1, Math.floor(target.maxHp*u.percentDamage)));
+        u.ammo--;
+        u.attackCooldown = getUnitAttackCooldown(u);
+        u.attackAnim = 0.15;
+        u.attackTargetPos = {x: target.x, y: target.y};
+        if (!applyDeathProtection(target) && target.hp<=0) { handleUnitKill(u, target); u.targetId = null; }
+        if (u.ammo<=0) u.hp=0;
+    }
+
+    function healAlly(u) {
+        let allies = gameState.units.filter(a=>a.side===u.side && a.hp<a.maxHp && a.id!==u.id && dist2D(u,a)<=u.range);
+        if (allies.length) {
+            allies.sort((a,b)=>{
+                const ca=getUnitConfig(a.type), cb=getUnitConfig(b.type);
+                const costDiff = (cb?.cost||0)-(ca?.cost||0);
+                if (costDiff) return costDiff;
+                const hpDiff = (a.hp/a.maxHp)-(b.hp/b.maxHp);
+                if (hpDiff) return hpDiff;
+                return (u.side==='blue'?a.x:-a.x)-(u.side==='blue'?b.x:-b.x);
+            });
+            const heal = allies[0];
+            const amount = u.healAmount || 15;
+            const missing = heal.maxHp - heal.hp;
+            heal.hp = Math.min(heal.maxHp, heal.hp + amount);
+            if (u.side === 'blue' && isRogueEnabled() && gameState.rogue.cardEffects.overhealShield && amount > missing) {
+                heal.shield = Math.min(heal.maxHp * 0.25, (heal.shield || 0) + (amount - missing));
+            }
+            u.attackAnim=0.15;
+            u.attackTargetPos={x:heal.x, y:heal.y};
+        }
+        u.attackCooldown = getUnitAttackCooldown(u);
+    }
+
+    function damageTarget(u, target) {
+        let dmg = u.damage;
+        if (u.critChance>0 && rng.random()<u.critChance) dmg = u.critDamage;
+        if (u.side === 'blue' && isRogueEnabled() && gameState.rogue.cardEffects.fewElite && getBlueUnitCount() <= 8) dmg *= 1.25;
+        let multiplier = getDamageMultiplier(u.armorType, target.armorType, u.special);
+        dmg = Math.floor(dmg*multiplier);
+        dealDamageToUnit(target, Math.max(1, dmg - (u.trueDamage?0:getEffectiveArmor(target))), { bypassShield: u.trueDamage });
+        if (u.side === 'blue' && isRogueEnabled() && gameState.rogue.cardEffects.armorBreak && u.type === 'mage' && rng.random() < 0.2) {
+            target.armorBreakTimer = 4;
+        }
+        u.attackCooldown = getUnitAttackCooldown(u);
+        u.attackAnim = 0.15;
+        u.attackTargetPos = {x: target.x, y: target.y};
+        if (u.lifesteal>0) u.hp = Math.min(u.maxHp, u.hp+u.lifesteal);
+        if (u.side === 'blue' && isRogueEnabled() && gameState.rogue.cardEffects.nightRitual) {
+            const types = new Set(gameState.units.filter(a=>a.side==='blue'&&a.hp>0).map(a=>a.type));
+            if (types.has('vampire') && types.has('nun') && types.has('mage')) u.hp = Math.min(u.maxHp, u.hp + 1);
+        }
+        if (!applyDeathProtection(target) && target.hp <= 0) { handleUnitKill(u, target); u.targetId = null; }
+        if (u.aoe>1) applyAoeDamage(u, target);
+    }
+
+    function applyAoeDamage(u, target) {
+        let inRange = gameState.units.filter(e=>e.side!==u.side && e.hp>0 && e.id!==target.id && dist2D(u,e)<=u.range && e.immuneTimer<=0);
+        inRange.sort((a,b)=>dist2D(u,a)-dist2D(u,b));
+        for (let e of inRange.slice(0, u.aoe-1)) {
+            const mult = getDamageMultiplier(u.armorType, e.armorType, u.special);
+            const d = Math.floor(u.damage*mult);
+            dealDamageToUnit(e, Math.max(1, d - (u.trueDamage?0:getEffectiveArmor(e))), { bypassShield: u.trueDamage });
+            if (!applyDeathProtection(e) && e.hp <= 0) handleUnitKill(u, e);
+        }
+    }
+
+    function runAttack(u, target) {
+        if (u.type==='turret') attackWithTurret(u, target);
+        else if (u.healer) healAlly(u);
+        else damageTarget(u, target);
+    }
+
+    function updateUnitBehavior(u, sepMap, deltaTime) {
+        const attackRange = u.type === 'engineer' ? 40 : u.range;
+        if (u.targetId) {
+            const t = gameState.units.find(t=>t.id===u.targetId);
+            if (!t || t.hp<=0 || t.immuneTimer>0) u.targetId = null;
+        }
+        if (!u.targetId) {
+            const target = selectTarget(u);
+            if (!target) return moveOrAttackBase(u, attackRange, sepMap, deltaTime);
+            u.targetId = target.id;
+        }
+        const target = gameState.units.find(t=>t.id===u.targetId);
+        if (!target || target.hp<=0 || target.immuneTimer>0) { u.targetId=null; return false; }
+        const distance = dist2D(u, target);
+        if (distance <= attackRange) {
+            if (u.attackCooldown <= 0) runAttack(u, target);
+            if (u.moveSpeed>0) applySeparationOnly(u, sepMap, deltaTime);
+        } else if (u.moveSpeed>0) {
+            moveToward(u, target, sepMap, deltaTime);
+        }
+        clampUnitPosition(u);
+        return false;
+    }
+
+    function updateUnits(deltaTime) {
+        const sepMap = computeSeparation();
+        for (let u of gameState.units) {
+            if (u.hp<=0 || u.immuneTimer>0) continue;
+            if (updateUnitBehavior(u, sepMap, deltaTime)) return true;
+        }
+        return false;
+    }
+
+    function handleBlueUnitDeath(u) {
+        if (!isRogueEnabled() || u.rogueDeathHandled || u.side !== 'blue') return;
+        u.rogueDeathHandled = true;
+        const e = gameState.rogue.cardEffects;
+        const cfg = getUnitConfig(u.type);
+        if (e.lowCostDeathRefund && isLowCostUnit(cfg)) addBlueGold(Math.floor(cfg.cost * e.lowCostDeathRefund));
+        if (e.wallExplosion && u.type === 'wall') {
+            gameState.units.forEach(enemy => {
+                if (enemy.side === 'red' && enemy.hp > 0 && dist2D(u, enemy) <= 90) dealDamageToUnit(enemy, 60);
+            });
+        }
+        if (e.firstDeathChaos && !gameState.rogue.round.firstDeathChaosUsed) {
+            gameState.rogue.round.firstDeathChaosUsed = true;
+            const roll = Math.floor(rng.random()*4);
+            if (roll === 0) {
+                gameState.units.forEach(a=>{ if(a.side==='blue'&&a.hp>0) a.hp = Math.min(a.maxHp, a.hp + 40); });
+            } else if (roll === 1) {
+                gameState.units.forEach(enemy => {
+                    if (enemy.side === 'red' && enemy.hp > 0 && dist2D(u, enemy) <= 100) dealDamageToUnit(enemy, 80);
+                });
+            } else if (roll === 2 && cfg) {
+                spawnFreeUnit(cfg.id, 'blue');
+            } else {
+                addBlueGold(300);
+            }
+        }
+    }
+
+    function removeDeadUnits() {
+        gameState.units.forEach(u => { if (u.hp <= 0) handleBlueUnitDeath(u); });
+        gameState.units = gameState.units.filter(u => u.hp>0);
+    }
+
+    function updateGame(deltaTime) {
+        if (gameState.gameOver || isPaused || !gameState.started) return;
+        updateEconomy(deltaTime);
+        if (gameState.controllers.red === 'ai') aiUpdate(deltaTime);
+        updateBaseAttacks(deltaTime);
+        updateUnitTimers(deltaTime);
+        updateRogueTimers(deltaTime);
+        placeEngineerTurrets();
+        if (updateUnits(deltaTime)) return;
+        removeDeadUnits();
+        updateAllUI();
+        if (gameState.matchType === 'onlineVersus' && networkState.role === 'host') {
+            networkState.digestTimer += deltaTime;
+            networkState.snapshotTimer += deltaTime;
+            if (networkState.snapshotTimer >= 0.1) {
+                networkState.snapshotTimer = 0;
+                sendStateSnapshot();
+            }
+            if (networkState.digestTimer >= 0.5) {
+                networkState.digestTimer = 0;
+                sendStateDigest();
+            }
+        }
+    }
+
+    // ====================== 新背景 ======================
+    function drawBackground() {
+        const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+        grad.addColorStop(0, '#c3e09b');   // 远方明亮嫩绿
+        grad.addColorStop(1, '#5c8a3f');   // 近处沉稳草绿
+        ctx.fillStyle = grad;
+        ctx.fillRect(-cameraX, 0, GAME_MAP_WIDTH, GAME_HEIGHT);
+    }
+    // ===================================================
+
+    function drawCrystal(basePos, player) {
+        ctx.save();
+        const drawX=basePos.x-cameraX, drawY=basePos.y;
+        ctx.strokeStyle=player.color+'60'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+        ctx.beginPath(); ctx.arc(drawX,drawY,getBaseAttackRange(player),0,Math.PI*2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.shadowColor=player.color; ctx.shadowBlur=22;
+        const cGrad=ctx.createLinearGradient(drawX-18,drawY,drawX+18,drawY);
+        cGrad.addColorStop(0,player.color); cGrad.addColorStop(0.5,'#fff'); cGrad.addColorStop(1,player.color);
+        ctx.fillStyle=cGrad;
+        ctx.beginPath();
+        ctx.moveTo(drawX,drawY-30); ctx.lineTo(drawX+18,drawY-3); ctx.lineTo(drawX+10,drawY+16);
+        ctx.lineTo(drawX-10,drawY+16); ctx.lineTo(drawX-18,drawY-3); ctx.closePath();
+        ctx.fill(); ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=2; ctx.stroke();
+        ctx.fillStyle='#fff'; ctx.font='bold 13px "Segoe UI"'; ctx.textAlign='center';
+        ctx.fillText(`🏰 ${Math.ceil(player.baseHP)}`, drawX, drawY-38);
+        if (player.attackAnim>0 && player.lastAttackTargetPos) {
+            ctx.beginPath(); ctx.moveTo(drawX,drawY-10);
+            ctx.lineTo(player.lastAttackTargetPos.x-cameraX, player.lastAttackTargetPos.y);
+            ctx.strokeStyle=player.color; ctx.lineWidth=4; ctx.globalAlpha=0.7;
+            ctx.stroke(); ctx.globalAlpha=1;
+        }
+        ctx.restore();
+    }
+
+    function drawUnits() {
+        const sorted = [...gameState.units].sort((a,b)=>a.y-b.y);
+        for (let u of sorted) {
+            if (u.hp<=0) continue;
+            const cfg = u.type==='turret' ? null : getUnitConfig(u.type);
+            const drawX = u.x - cameraX;
+            if (drawX<-60 || drawX>canvas.width+60) continue;
+            ctx.save(); ctx.translate(drawX, u.y);
+            if (u.immuneTimer>0) ctx.globalAlpha = 0.4;
+            ctx.fillStyle='rgba(0,0,0,0.35)';
+            ctx.beginPath(); ctx.ellipse(0,7,11,4.5,0,0,Math.PI*2); ctx.fill();
+            const icon = u.type==='turret' ? '🔫' : (cfg?cfg.icon:'❓');
+            ctx.font='27px "Segoe UI Emoji"'; ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillText(icon,0,-1);
+            const hpP = Math.max(0, u.hp/u.maxHp), barW=30, barY=-21;
+            ctx.fillStyle='#1a1a1a'; ctx.fillRect(-barW/2,barY,barW,5);
+            ctx.fillStyle = u.side==='blue' ? `rgb(${Math.floor(70+185*(1-hpP))},${Math.floor(140+115*hpP)},255)` : `rgb(255,${Math.floor(80+175*hpP)},${Math.floor(80+175*hpP)})`;
+            ctx.fillRect(-barW/2,barY,barW*hpP,5);
+            if (u.shield > 0) {
+                const shieldP = Math.min(1, u.shield / u.maxHp);
+                ctx.fillStyle = 'rgba(58, 230, 255, 0.25)';
+                ctx.fillRect(-barW/2, barY-3, barW, 2);
+                ctx.fillStyle = '#3ae6ff';
+                ctx.fillRect(-barW/2, barY-3, barW*shieldP, 2);
+                ctx.strokeStyle = 'rgba(58, 230, 255, 0.85)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(-barW/2-1, barY-4, barW+2, 9);
+            }
+            if (u.type==='turret') {
+                ctx.fillStyle='#fff'; ctx.font='bold 10px "Segoe UI"';
+                ctx.fillText(`弹药:${u.ammo}/${u.maxAmmo}`,0,-28);
+            }
+            const showBeam = u.type==='turret' || (cfg && (cfg.range>60 || u.healer));
+            if (u.attackAnim>0 && u.attackTargetPos && showBeam) {
+                ctx.beginPath(); ctx.moveTo(0,-5);
+                ctx.lineTo(u.attackTargetPos.x-u.x, u.attackTargetPos.y-u.y);
+                ctx.strokeStyle= u.healer ? '#88ff88' : (u.type==='turret' ? '#ff8888' : '#ffbb2e');
+                ctx.lineWidth=2.5; ctx.globalAlpha*=0.5;
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+    }
+
+    function drawUI() {
+        if (!gameState.started) {
+            ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,0,canvas.width,GAME_HEIGHT);
+            ctx.fillStyle='#ffd966'; ctx.font='bold 32px "Segoe UI"'; ctx.textAlign='center';
+            ctx.fillText('请先选择模式', canvas.width/2, GAME_HEIGHT/2);
+            return;
+        }
+        if (gameState.waveMessageTimer>0) {
+            ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,GAME_HEIGHT/2-40,canvas.width,80);
+            ctx.fillStyle='#ffbb2e'; ctx.font='bold 36px "Segoe UI"'; ctx.textAlign='center';
+            ctx.fillText(`无尽模式—第${gameState.wave}轮`, canvas.width/2, GAME_HEIGHT/2+12);
+        }
+        if (gameState.gameOver) {
+            ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,canvas.width,GAME_HEIGHT);
+            ctx.fillStyle='#ffd966'; ctx.font='bold 46px "Segoe UI"'; ctx.textAlign='center';
+            const winnerText = (gameState.matchType==='localVersus' || gameState.matchType==='onlineVersus')
+                ? (gameState.winner==='blue' ? '蓝方赢了！' : '红方赢了！')
+                : (gameState.winner==='blue' ? '你赢了！' : 'AI赢了');
+            ctx.fillText(winnerText, canvas.width/2, GAME_HEIGHT/2);
+            if (gameState.mode==='endless' && gameState.winner==='red') {
+                ctx.font='bold 24px "Segoe UI"';
+                ctx.fillText(`你坚持到了第 ${gameState.wave} 轮`, canvas.width/2, GAME_HEIGHT/2+50);
+            }
+        }
+        ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(canvas.width/2-90,6,180,30);
+        ctx.fillStyle='#fff'; ctx.font='bold 16px "Segoe UI"'; ctx.textAlign='center';
+        ctx.fillText('米拉奇战记 v4.2', canvas.width/2,27);
+    }
+
+    const minimapCanvas = document.getElementById('minimapCanvas');
+    const minimapCtx = minimapCanvas.getContext('2d');
+    const minimapScaleX = GAME_MAP_WIDTH/minimapCanvas.width, minimapScaleY = GAME_HEIGHT/minimapCanvas.height;
+    function drawMinimap() {
+        minimapCtx.clearRect(0,0,minimapCanvas.width,minimapCanvas.height);
+        minimapCtx.fillStyle='#151820'; minimapCtx.fillRect(0,0,minimapCanvas.width,minimapCanvas.height);
+        gameState.units.forEach(u=>{
+            const mx=u.x/minimapScaleX, my=u.y/minimapScaleY;
+            minimapCtx.fillStyle=u.side==='blue'?'#5b9cf5':'#f55b5b';
+            minimapCtx.beginPath(); minimapCtx.arc(mx,my,2,0,Math.PI*2); minimapCtx.fill();
+        });
+        const size=4;
+        minimapCtx.fillStyle='#5b9cf5'; minimapCtx.fillRect(BLUE_BASE.x/minimapScaleX-size/2,BLUE_BASE.y/minimapScaleY-size/2,size,size);
+        minimapCtx.fillStyle='#f55b5b'; minimapCtx.fillRect(RED_BASE.x/minimapScaleX-size/2,RED_BASE.y/minimapScaleY-size/2,size,size);
+        const vw=canvas.width/minimapScaleX, vh=GAME_HEIGHT/minimapScaleY, vx=cameraX/minimapScaleX;
+        minimapCtx.strokeStyle='rgba(255,255,255,0.7)'; minimapCtx.lineWidth=1.5; minimapCtx.setLineDash([4,4]);
+        minimapCtx.strokeRect(vx,0,vw,vh); minimapCtx.setLineDash([]);
+    }
+
+    let minimapDrag=false;
+    minimapCanvas.addEventListener('mousedown',(e)=>{
+        minimapDrag=true; const rect=minimapCanvas.getBoundingClientRect();
+        const scaleX=minimapCanvas.width/rect.width, mouseX=(e.clientX-rect.left)*scaleX;
+        cameraX=clamp(mouseX*minimapScaleX-canvas.width/2,0,GAME_MAP_WIDTH-canvas.width); e.preventDefault();
+    });
+    window.addEventListener('mousemove',(e)=>{
+        if(!minimapDrag)return; const rect=minimapCanvas.getBoundingClientRect();
+        const scaleX=minimapCanvas.width/rect.width, mouseX=(e.clientX-rect.left)*scaleX;
+        cameraX=clamp(mouseX*minimapScaleX-canvas.width/2,0,GAME_MAP_WIDTH-canvas.width);
+    });
+    window.addEventListener('mouseup',()=>{minimapDrag=false;});
+
+    function createUnitCard(unit, side, index) {
+        const card=document.createElement('div'); card.className='unit-card'; card.dataset.unitId=unit.id; card.dataset.side=side;
+        card.dataset.unitIndex=index;
+        card.innerHTML=`<span class="unit-icon">${unit.icon}</span><span class="unit-name">${unit.name}</span><span class="unit-cost">💰${unit.cost}</span>`;
+        const startBuy=(e)=>{
+            e.preventDefault();
+            const command = { type: 'buyUnit', side, unitId: unit.id };
+            if(submitCommand(command)){
+                if(holdTimer)clearInterval(holdTimer);
+                holdUnitId=unit.id;
+                holdTimer=setInterval(()=>{
+                    if(!submitCommand({ type: 'buyUnit', side, unitId: holdUnitId })){
+                        clearInterval(holdTimer); holdTimer=null;
+                    }
+                },150);
+            }
+        };
+        const stopBuy=()=>{ if(holdTimer){clearInterval(holdTimer);holdTimer=null;} };
+        card.addEventListener('mousedown',startBuy); card.addEventListener('touchstart',startBuy,{passive:false});
+        card.addEventListener('mouseleave',stopBuy); card.addEventListener('mouseup',stopBuy);
+        card.addEventListener('touchend',stopBuy); card.addEventListener('touchcancel',stopBuy);
+        card.addEventListener('mouseenter',(e)=>showTooltip(e,unit)); card.addEventListener('mouseleave',hideTooltip);
+        return card;
+    }
+
+    function getUnitCardsForSide(side) {
+        return Array.from(document.querySelectorAll(`#${side}Units .unit-card`));
+    }
+
+    function refreshLocalKeyboardSelectionUI() {
+        document.querySelectorAll('#blueUnits .unit-card, #redUnits .unit-card').forEach(card=>{
+            const side = card.dataset.side;
+            const isSelected = gameState.matchType === 'localVersus'
+                && gameState.controllers[side] === 'local'
+                && Number(card.dataset.unitIndex) === localKeyboardSelection[side];
+            card.classList.toggle('keyboard-selected', isSelected);
+        });
+    }
+
+    function setLocalKeyboardSelection(side, index) {
+        const cards = getUnitCardsForSide(side);
+        if (!cards.length) return;
+        localKeyboardSelection[side] = (index + cards.length) % cards.length;
+        refreshLocalKeyboardSelectionUI();
+    }
+
+    function moveLocalKeyboardSelection(side, dx, dy) {
+        const cards = getUnitCardsForSide(side);
+        if (!cards.length) return;
+        const currentIndex = clamp(localKeyboardSelection[side], 0, cards.length-1);
+        if (dy === 0) {
+            setLocalKeyboardSelection(side, currentIndex + dx);
+            return;
+        }
+        const currentRect = cards[currentIndex].getBoundingClientRect();
+        const currentX = currentRect.left + currentRect.width/2;
+        const currentY = currentRect.top + currentRect.height/2;
+        const centers = cards.map((card, index)=>{
+            const rect = card.getBoundingClientRect();
+            return { index, x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+        });
+        const dir = Math.sign(dy);
+        let candidates = centers.filter(item => dir > 0 ? item.y > currentY + 4 : item.y < currentY - 4);
+        if (!candidates.length) {
+            const wrapY = dir > 0 ? Math.min(...centers.map(item=>item.y)) : Math.max(...centers.map(item=>item.y));
+            candidates = centers.filter(item => Math.abs(item.y - wrapY) < 4);
+        }
+        candidates.sort((a,b)=>{
+            const aScore = Math.abs(a.x-currentX) + Math.abs(a.y-currentY)*0.2;
+            const bScore = Math.abs(b.x-currentX) + Math.abs(b.y-currentY)*0.2;
+            return aScore - bScore;
+        });
+        if (candidates[0]) setLocalKeyboardSelection(side, candidates[0].index);
+    }
+
+    function submitSelectedLocalKeyboardUnit(side) {
+        const cards = getUnitCardsForSide(side);
+        const card = cards[localKeyboardSelection[side]];
+        return !!card && submitCommand({ type: 'buyUnit', side, unitId: card.dataset.unitId });
+    }
+
+    function stopLocalKeyboardBuy(side) {
+        if (localKeyboardBuyTimers[side]) {
+            clearInterval(localKeyboardBuyTimers[side]);
+            localKeyboardBuyTimers[side] = null;
+        }
+    }
+
+    function updateRogueTimers(deltaTime) {
+        if (!isRogueEnabled()) return;
+        const e = gameState.rogue.cardEffects;
+        const round = gameState.rogue.round;
+        if (round.miracleTimer > 0) round.miracleTimer -= deltaTime;
+        if (e.miracle && !round.miracleUsed && gameState.blue.baseHP > 0 && gameState.blue.baseHP / e.baseMaxHp <= 0.3) {
+            round.miracleUsed = true;
+            round.miracleTimer = 10;
+            addBlueGold(1000);
+        }
+        if (e.sanctuary) {
+            round.sanctuaryTimer -= deltaTime;
+            if (round.sanctuaryTimer <= 0) {
+                round.sanctuaryTimer += 20;
+                gameState.units.forEach(u => {
+                    if (u.side === 'blue' && u.hp > 0 && u.armorType === 'magic') u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.08);
+                });
+            }
+        }
+        if (e.turretRepair) {
+            round.turretRepairTimer -= deltaTime;
+            if (round.turretRepairTimer <= 0) {
+                round.turretRepairTimer += 5;
+                const turrets = gameState.units.filter(u=>u.side==='blue'&&u.type==='turret'&&u.hp>0);
+                gameState.units.forEach(u => {
+                    if (u.side !== 'blue' || u.type !== 'engineer' || u.hp <= 0) return;
+                    turrets.forEach(t => {
+                        if (dist2D(u,t) <= 180) t.hp = Math.min(t.maxHp, t.hp + 20);
+                    });
+                });
+            }
+        }
+    }
+
+    function stopAllLocalKeyboardBuys() {
+        stopLocalKeyboardBuy('blue');
+        stopLocalKeyboardBuy('red');
+    }
+
+    function startLocalKeyboardBuy(side) {
+        if (localKeyboardBuyTimers[side]) return;
+        if (!submitSelectedLocalKeyboardUnit(side)) return;
+        localKeyboardBuyTimers[side] = setInterval(()=>{
+            if (!submitSelectedLocalKeyboardUnit(side)) stopLocalKeyboardBuy(side);
+        }, 150);
+    }
+
+    function localKeyboardSideForKey(code) {
+        for (let side of ['blue','red']) {
+            const controls = LOCAL_KEYBOARD_CONTROLS[side];
+            for (let action in controls) if (controls[action] === code) return { side, action };
+        }
+        return null;
+    }
+
+    function shouldHandleLocalKeyboard(target) {
+        if (!gameState.started || gameState.matchType !== 'localVersus') return false;
+        if (document.querySelector('.modal-overlay.show')) return false;
+        if (!target) return true;
+        return !['INPUT','TEXTAREA','SELECT'].includes(target.tagName);
+    }
+
+    function handleLocalKeyboardDown(e) {
+        const binding = localKeyboardSideForKey(e.code);
+        if (!binding || !shouldHandleLocalKeyboard(e.target)) return false;
+        e.preventDefault();
+        if (binding.action === 'buy') {
+            if (!e.repeat) startLocalKeyboardBuy(binding.side);
+            return true;
+        }
+        if (binding.action === 'left') moveLocalKeyboardSelection(binding.side, -1, 0);
+        else if (binding.action === 'right') moveLocalKeyboardSelection(binding.side, 1, 0);
+        else if (binding.action === 'up') moveLocalKeyboardSelection(binding.side, 0, -1);
+        else if (binding.action === 'down') moveLocalKeyboardSelection(binding.side, 0, 1);
+        return true;
+    }
+
+    function handleLocalKeyboardUp(e) {
+        const binding = localKeyboardSideForKey(e.code);
+        if (!binding || binding.action !== 'buy') return false;
+        const hadTimer = !!localKeyboardBuyTimers[binding.side];
+        stopLocalKeyboardBuy(binding.side);
+        if (!hadTimer && !shouldHandleLocalKeyboard(e.target)) return false;
+        e.preventDefault();
+        return true;
+    }
+
+    function refreshControllerUI() {
+        let blueTitle = '🔵 你 (蓝方)';
+        let redTitle = '🔴 AI (红方)';
+        if (gameState.matchType === 'localVersus') {
+            blueTitle = '🔵 玩家1 (蓝方)';
+            redTitle = '🔴 玩家2 (红方)';
+        } else if (gameState.matchType === 'onlineVersus') {
+            blueTitle = networkState.role === 'host' ? '🔵 你·房主 (蓝方)' : '🔵 房主 (蓝方)';
+            redTitle = networkState.role === 'guest' ? '🔴 你·客机 (红方)' : '🔴 客机 (红方)';
+        }
+        document.getElementById('blueTitle').textContent = blueTitle;
+        document.getElementById('redTitle').textContent = redTitle;
+        document.querySelectorAll('#blueUnits .unit-card, #redUnits .unit-card').forEach(card=>{
+            card.classList.toggle('ai-card', gameState.controllers[card.dataset.side] !== 'local');
+        });
+        refreshLocalKeyboardSelectionUI();
+    }
+
+    function createUnitCards() {
+        const blueC=document.getElementById('blueUnits'); blueC.innerHTML='';
+        UNITS.forEach((unit,index)=>blueC.appendChild(createUnitCard(unit,'blue',index)));
+        const redC=document.getElementById('redUnits'); redC.innerHTML='';
+        UNITS.forEach((unit,index)=>redC.appendChild(createUnitCard(unit,'red',index)));
+        refreshControllerUI();
+    }
+    window.addEventListener('mouseup',()=>{ if(holdTimer){clearInterval(holdTimer);holdTimer=null;} });
+    window.addEventListener('touchend',()=>{ if(holdTimer){clearInterval(holdTimer);holdTimer=null;} });
+    window.addEventListener('blur',()=>{ if(holdTimer){clearInterval(holdTimer);holdTimer=null;} stopAllLocalKeyboardBuys(); });
+
+    let tooltipDiv=null;
+    function showTooltip(e,unit){
+        if(!tooltipDiv){ tooltipDiv=document.createElement('div'); tooltipDiv.className='tooltip'; document.body.appendChild(tooltipDiv); }
+        const armorName=getArmorTypeName(unit.armorType);
+        const {strong,weak}=getCounterInfo(unit.armorType);
+        let specialDesc='';
+        if(unit.special){ const t=[]; for(let k in unit.special) t.push(getArmorTypeName(k)); specialDesc=`<br><span style="color:#ffaa00;">✨ 额外克制 ${t.join('、')}</span>`; }
+        let attackLabel = unit.healer ? '治疗量' : (unit.trueDamage ? '攻击力(真伤)' : '攻击力');
+        let extra='';
+        if(unit.id==='assassin') extra='<br>🛡️ 名刀司命：致命伤免疫+0.5秒无敌';
+        if(unit.id==='jester') extra='<br>🎲 1%概率10000伤害';
+        if(unit.id==='vampire') extra='<br>🩸 每秒10次2真伤+吸血2';
+        if(unit.id==='engineer') extra='<br>🔨 近战，检测到敌人自动放置炮台(5发20%最大生命伤害，限时60秒)';
+        tooltipDiv.innerHTML=`
+            <div class="stat"><span class="label">${attackLabel}</span><span class="value">${unit.healAmount||unit.damage}</span></div>
+            <div class="stat"><span class="label">生命值</span><span class="value">${unit.hp}</span></div>
+            <div class="stat"><span class="label">护甲</span><span class="value">${unit.armor} (${armorName})</span></div>
+            <div class="counter"><span class="strong">⚔️ 克制 ${strong}</span><br><span class="weak">🛡️ 被 ${weak} 克制</span>${specialDesc}${extra}</div>
+            <div class="slogan">“${unit.slogan}”</div>
+        `;
+        if(unit.aoe) tooltipDiv.innerHTML += `<div style="color:#ffbb2e;margin-top:4px;">💥 群体伤害(近3敌)</div>`;
+        tooltipDiv.style.display='block';
+        let left = e.clientX+18, top = e.clientY+18;
+        const maxW = window.innerWidth - tooltipDiv.offsetWidth - 10, maxH = window.innerHeight - tooltipDiv.offsetHeight - 10;
+        if(left > maxW) left = e.clientX - tooltipDiv.offsetWidth - 10;
+        if(top > maxH) top = e.clientY - tooltipDiv.offsetHeight - 10;
+        tooltipDiv.style.left = Math.max(5, left) + 'px';
+        tooltipDiv.style.top = Math.max(5, top) + 'px';
+    }
+    function hideTooltip(){ if(tooltipDiv) tooltipDiv.style.display='none'; }
+
+    function updateAllUI() {
+        if(!gameState.started) {
+            updateRogueBuffPanel();
+            return;
+        }
+        document.getElementById('blueGold').textContent = `💰 ${Math.floor(gameState.blue.gold)}`;
+        document.getElementById('redGold').textContent = `💰 ${Math.floor(gameState.red.gold)}`;
+        document.getElementById('blueHP').textContent = `🏰 ${Math.ceil(gameState.blue.baseHP)}`;
+        document.getElementById('redHP').textContent = `🏰 ${Math.ceil(gameState.red.baseHP)}`;
+        document.getElementById('blueIncome').textContent = `⏳ ${gameState.blueBaseIncome} ${gameState.blueGoldTimer.toFixed(1)}s`;
+        document.getElementById('redIncome').textContent = `⏳ ${gameState.redBaseIncome} ${gameState.redGoldTimer.toFixed(1)}s`;
+        document.querySelectorAll('#blueUnits .unit-card').forEach(card=>{
+            const cfg=getUnitConfig(card.dataset.unitId);
+            const cost = getUnitCost(cfg, 'blue');
+            const costEl = card.querySelector('.unit-cost');
+            if (costEl && cfg) costEl.textContent = `💰${cost}`;
+            card.classList.toggle('cant-afford', cfg && gameState.blue.gold<cost);
+        });
+        document.querySelectorAll('#redUnits .unit-card').forEach(card=>{
+            const cfg=getUnitConfig(card.dataset.unitId);
+            const cost = getUnitCost(cfg, 'red');
+            const costEl = card.querySelector('.unit-cost');
+            if (costEl && cfg) costEl.textContent = `💰${cost}`;
+            card.classList.toggle('cant-afford', cfg && gameState.red.gold<cost);
+        });
+        refreshLocalKeyboardSelectionUI();
+        const t = Math.floor(gameState.elapsedTime);
+        document.getElementById('timerDisplay').textContent = `⏱ ${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
+        updateRogueBuffPanel();
+    }
+
+    function initGame(diff, custom=null) {
+        currentDifficulty = diff;
+        gameState.matchType = diff==='localVersus' ? 'localVersus' : (diff==='onlineVersus' ? 'onlineVersus' : 'single');
+        if (gameState.matchType === 'localVersus') gameState.controllers = { blue: 'local', red: 'local' };
+        else if (gameState.matchType === 'onlineVersus') gameState.controllers = networkState.role === 'guest' ? { blue: 'remote', red: 'local' } : { blue: 'local', red: 'remote' };
+        else gameState.controllers = { blue: 'local', red: 'ai' };
+        gameState.mode = diff==='endless' ? 'endless' : 'normal';
+        gameState.rogue = createRogueState();
+        gameState.rogue.enabled = gameState.mode === 'endless';
+        gameState.wave = 1; gameState.aiStatMult = 1.0; gameState.waveMessageTimer = 0;
+        resetRoundEconomy();
+        gameState.customSettings = gameState.matchType==='single' ? custom : null;
+        gameState.blue = createPlayerState('blue');
+        gameState.red = createPlayerState('red', gameState.customSettings?gameState.customSettings.startGold:200);
+        gameState.units = []; gameState.gameOver = false; gameState.winner = null;
+        gameState.lastTimestamp = 0; gameState.started = true;
+        cameraX = gameState.matchType==='onlineVersus' && networkState.localSide==='red' ? RED_BASE.x-canvas.width+50 : BLUE_BASE.x-50;
+        cameraX = clamp(cameraX, 0, GAME_MAP_WIDTH-canvas.width);
+        isPaused = false; speedMultiplier = 1; aiTargetArmor = null;
+        stopAllLocalKeyboardBuys();
+        localKeyboardSelection.blue = 0;
+        localKeyboardSelection.red = 0;
+        networkState.digestTimer = 0; networkState.snapshotTimer = 0; networkState.lastAppliedSnapshotSeq = 0;
+        if (gameState.matchType === 'onlineVersus' && networkState.role === 'host') networkState.snapshotSeq = 0;
+        document.getElementById('pauseBtn').textContent = '⏯️'; document.getElementById('pauseBtn').classList.remove('active');
+        document.getElementById('speedBtn').classList.remove('active');
+        refreshControllerUI();
+        updateOnlineControls();
+        updateWaveDisplay(); updateAllUI();
+    }
+
+    function gameLoop(ts) {
+        if (!gameState.lastTimestamp) gameState.lastTimestamp = ts;
+        let dt = Math.min(0.05, (ts-gameState.lastTimestamp)/1000);
+        gameState.lastTimestamp = ts;
+        const shouldRunSimulation = gameState.matchType !== 'onlineVersus' || networkState.role !== 'guest';
+        if (gameState.started && !isPaused && shouldRunSimulation) updateGame(dt * speedMultiplier);
+        drawBackground();
+        if (gameState.started) { drawCrystal(BLUE_BASE, gameState.blue); drawCrystal(RED_BASE, gameState.red); drawUnits(); }
+        drawUI(); if (gameState.started) drawMinimap();
+        requestAnimationFrame(gameLoop);
+    }
+
+    let dragging=false, dragStartX=0, dragStartCam=0;
+    canvas.addEventListener('mousedown',(e)=>{ if(e.button===0){ dragging=true; dragStartX=e.clientX; dragStartCam=cameraX; e.preventDefault(); } });
+    window.addEventListener('mousemove',(e)=>{ if(!dragging)return; cameraX=clamp(dragStartCam-(e.clientX-dragStartX),0,GAME_MAP_WIDTH-canvas.width); });
+    window.addEventListener('mouseup',()=>{ dragging=false; });
+
+    const pauseBtn=document.getElementById('pauseBtn'), speedBtn=document.getElementById('speedBtn');
+    function isRemoteOnlineClient() { return gameState.matchType === 'onlineVersus' && networkState.role === 'guest'; }
+    function sendHostSnapshotNow() { if (gameState.matchType === 'onlineVersus' && networkState.role === 'host') { sendStateDigest(); sendStateSnapshot(); } }
+    function togglePause(){ isPaused=!isPaused; pauseBtn.textContent=isPaused?'▶️':'⏯️'; pauseBtn.classList.toggle('active',isPaused); sendHostSnapshotNow(); }
+    pauseBtn.addEventListener('click',()=>{ if(!isRemoteOnlineClient()) togglePause(); });
+    speedBtn.addEventListener('click',()=>{ if(isRemoteOnlineClient()) return; speedMultiplier=speedMultiplier===1?2:1; speedBtn.classList.toggle('active',speedMultiplier===2); sendHostSnapshotNow(); });
+    document.addEventListener('keydown',(e)=>{
+        if (handleLocalKeyboardDown(e)) return;
+        if(e.code==='Space'&&gameState.started&&!isRemoteOnlineClient()){ e.preventDefault(); togglePause(); }
+    });
+    document.addEventListener('keyup',handleLocalKeyboardUp);
+
+    let preModalPause=false;
+    function pauseForModal(){ stopAllLocalKeyboardBuys(); if(gameState.started&&!isPaused){ preModalPause=false; togglePause(); } else preModalPause=isPaused; }
+    function resumeFromModal(){ if(gameState.started&&!preModalPause&&isPaused) togglePause(); }
+
+    const bgm=document.getElementById('bgm'), musicBtn=document.getElementById('musicBtn');
+    let musicPlaying=false;
+    function tryAutoPlay(){ bgm.play().then(()=>{ musicPlaying=true; musicBtn.classList.add('active'); }).catch(()=>{ musicPlaying=false; }); }
+    document.body.addEventListener('click',()=>{ if(!musicPlaying) tryAutoPlay(); },{once:false});
+    musicBtn.addEventListener('click',(e)=>{ e.stopPropagation(); if(musicPlaying){ bgm.pause(); musicPlaying=false; musicBtn.classList.remove('active'); } else { bgm.play().then(()=>{ musicPlaying=true; musicBtn.classList.add('active'); }).catch(()=>{}); } });
+
+    const helpModal=document.getElementById('helpModal');
+    document.getElementById('helpText').textContent = `米拉奇战记 v4.2 教程
+================================
+
+一、游戏目标
+
+你是蓝方，AI 是红方。双方基地位于地图两端，单位会自动向敌方推进、索敌、攻击。
+
+胜利条件：
+1. 将红方基地生命值打到 0。
+2. 无尽模式中，每次摧毁红方基地会进入下一轮，而不是直接胜利。
+
+失败条件：
+蓝方基地生命值降到 0。
+
+
+二、基本操作
+
+出兵：
+- 点击蓝方兵种卡片即可购买并部署该单位。
+- 长按兵种卡片会连续出兵，直到金币不足、松开鼠标/手指、暂停或游戏结束。
+- 本地双人键盘：蓝方 W/A/S/D 选择兵种，F 出兵；红方方向键选择兵种，Enter 出兵。
+- 本地双人按住出兵键也会连续出兵。
+- 灰色兵种卡片表示当前金币不足。
+
+视野移动：
+- 在主画面上拖拽，可以横向移动视野。
+- 拖拽小地图，也可以快速移动到地图其他位置。
+
+快捷操作：
+- 空格：暂停 / 继续。
+- 顶部暂停按钮：暂停 / 继续。
+- 顶部速度按钮：1 倍 / 2 倍速度切换。
+- 音乐按钮：开启 / 关闭背景音乐。
+- 问号按钮：打开本教程。
+- 日志按钮：查看版本更新日志。
+
+
+三、经济系统
+
+金币是出兵资源。
+
+基础规则：
+- 双方初始金币通常为 200。
+- 每 10 秒获得一次工资。
+- 初始工资为 400。
+- 金币上限为 6000。
+
+永久收入成长：
+每购买一个单位，下一次以及之后的工资都会永久增加。单位越贵，增加比例越高。
+
+大致规律：
+- 30 金币及以下：增加该单位价格的 2%。
+- 31-60 金币：增加 3%。
+- 61-100 金币：增加 4%。
+- 101-200 金币：增加 5%。
+- 200 金币以上：增加 6%。
+
+实战理解：
+- 便宜兵可以快速铺场，也能稳定滚收入。
+- 贵兵单体强，但如果太早憋钱，前线可能会被推穿。
+- 工资会越打越高，前期投入会影响中后期经济。
+
+
+四、护甲与克制
+
+每个单位都有一种护甲类型：轻甲、重甲、魔法甲。
+
+基础三角克制：
+- 重甲 克制 轻甲。
+- 轻甲 克制 魔法甲。
+- 魔法甲 克制 重甲。
+
+克制效果：
+克制时造成 1.3 倍伤害。
+
+特殊克制：
+部分单位拥有额外克制，会和基础克制叠加。例如：
+- 武士、忍者、铁甲骑兵、克弱对重甲有额外伤害。
+- 刺客对轻甲有额外伤害。
+- 魔法师同时额外克制重甲和轻甲。
+- 橘皮对所有护甲类型都有额外伤害。
+
+伤害结算：
+- 普通伤害会先计算克制倍率，再扣除目标护甲。
+- 每次攻击至少造成 1 点伤害。
+- 真伤会无视护甲和护盾。
+
+
+五、兵种定位
+
+弄臣 10：
+极低价格，轻甲，真伤。大多数时候只造成 1 点伤害，但有 1% 概率打出 10000 暴击，并优先攻击高价值目标。
+
+新兵 20：
+基础近战轻甲单位，便宜、稳定，适合前期铺场和滚经济。
+
+老兵 35：
+重甲近战，血量比新兵高，适合承担前排压力。
+
+弓箭手 40：
+远程轻甲，真伤输出，能在后排稳定攻击。
+
+城墙 45：
+重甲超高血量单位，移动慢、攻击低，主要用来拖住战线。
+
+忍者 50：
+高速轻甲刺客，攻速快，对重甲有额外伤害，适合切入和追击。
+
+武士 60：
+重甲近战，对重甲有额外伤害，适合处理中高血量前排。
+
+修女 65：
+魔法甲治疗单位，不攻击敌人，会优先治疗高价值、残血、靠前的友军。
+
+刺客 70：
+高速轻甲，优先攻击远程单位。受到致命伤时会触发一次名刀效果，免疫该次死亡并获得 0.5 秒无敌。
+
+土木工程师 70：
+轻甲近战单位。检测到射程内有敌人时，会自动放置一个限时炮台。炮台有 5 发弹药，每次造成目标最大生命值 20% 的伤害，存在 60 秒。
+
+奥术卫士 75：
+魔法甲前排，血量和护甲都较高，适合顶住重甲单位。
+
+魔法师 80：
+远程魔法甲输出，同时额外克制重甲和轻甲，适合中期补足伤害。
+
+铁甲骑兵 110：
+高血量重甲突击单位，对重甲有额外伤害，移动速度较快。
+
+吸血鬼 150：
+魔法甲近战，高频真伤，每次攻击吸血。适合长时间持续作战。
+
+克弱 550：
+昂贵重甲强力单位，拥有群体伤害，最多攻击附近 3 个敌人，对重甲有额外伤害。
+
+橘皮 1000：
+终极重甲单位，生命、护甲、攻击都很高，并额外克制所有护甲类型。
+
+
+六、AI 与模式
+
+简单：
+AI 主要按照阶段和金币情况出兵，压力较低。
+
+普通：
+AI 会根据战局调整出兵，并尝试维持远近搭配和治疗比例。
+
+地狱：
+AI 单位生命值和攻击力提升到 1.2 倍，同时拥有更强的出兵压力。
+
+无尽：
+摧毁红方基地后进入下一轮。指定轮次通关后会出现三选一远征奖励。
+奖励约每 2-3 轮出现一次，关键轮次会出现核心或终局奖励。
+奖励路线包括人海、铁壁、术法、工程、精英、命运，也有少量通用牌补经济和基地。
+本次版本不改变 AI 成长：每轮 AI 生命值和攻击力仍增加 8%，双方金币、基地生命和工资会重置。
+
+自定义：
+可以手动设置 AI 攻击倍率、生命倍率和初始金币。
+
+本地双人：
+蓝方和红方都由本地玩家控制，红方 AI 不会自动出兵。
+推荐使用键盘避免抢鼠标：蓝方 W/A/S/D + F，红方方向键 + Enter。
+
+联机对战：
+使用好友房间进行实时对战。房主是蓝方，客机是红方。房主创建房间并发送房主 ID，客机输入 ID 加入后，由房主开始对战。
+
+联机说明：
+- 联机采用房主权威同步，客机会根据房主状态显示战局。
+- 客机的暂停和 2 倍速由房主控制。
+- 如果校园网、公司网等环境无法连接，可以尝试手机热点、家庭网络或关闭 VPN/代理。
+
+
+七、实战建议
+
+前期：
+- 不要只憋贵兵。先用新兵、老兵、弓箭手等单位建立战线。
+- 便宜兵也能提高永久工资，前期出兵本身就是经济投资。
+
+中期：
+- 观察敌方前排护甲类型，补充能克制它们的兵种。
+- 如果前线扛不住，可以用城墙、老兵、奥术卫士拖住。
+- 如果后排被切，注意补刺客、忍者或更厚的前排。
+
+后期：
+- 克弱和橘皮很强，但价格高，适合经济成型后使用。
+- 修女越多不一定越好，缺少输出时只会延长失败时间。
+- 炮台适合打高血量目标，但工程师本体很脆，需要前排保护。
+
+核心思路：
+先活下来，再滚经济；先看护甲，再选克制；前排、输出、治疗要搭配。`;
+    document.getElementById('helpBtn').addEventListener('click',()=>{ pauseForModal(); helpModal.classList.add('show'); });
+    document.getElementById('closeHelpX').addEventListener('click',()=>{ helpModal.classList.remove('show'); resumeFromModal(); });
+    helpModal.addEventListener('click',(e)=>{ if(e.target===helpModal){ helpModal.classList.remove('show'); resumeFromModal(); } });
+
+    const logModal=document.getElementById('logModal'), logText=document.getElementById('logText'), logBtn=document.getElementById('logBtn'), closeLogX=document.getElementById('closeLogX');
+    logText.textContent = `米拉奇战记 · 更新日志
+================================
+v4.2 (2026-06-05)
+- 无尽模式新增肉鸽式三选一奖励
+- 新增人海、铁壁、术法、工程、精英、命运六条升级路线
+- 新增 12 张通用牌，补充经济、基地和全军强化
+- 奖励频率提升为约每 2-3 轮一次
+- 真实伤害现在无视护盾
+- AI 无尽成长仍保持每轮属性 +8%
+
+v4.1 (2026-06-04)
+- 本地双人新增双键盘操控：蓝方 WASD+F，红方方向键+Enter
+- 当前键盘选中的兵种会在卡片上高亮，按住出兵键可连续出兵
+
+v4.0 (2026-05-27)
+- 新增本地双人模式
+- 新增好友房间联机对战
+- 联机采用房主权威状态同步
+- PeerJS 客户端改为随项目本地加载
+
+v3.4 (2026-05-25)
+- 全新背景：由远及近渐变绿色，提升视觉清晰度
+- 移除旧版天空+泥土场景，画面更简洁
+
+v3.3.2 炮台修复、工程师近战化、炮台限时
+v3.3.1 刺客名刀修复、工程师降价等
+v3.3 新单位弄臣、吸血鬼、工程师
+v3.2 修复无尽金币bug等
+v3.1 永久经济累加、长按出兵
+v3.0 经济重做、城墙、真伤、群伤`;
+    logBtn.addEventListener('click',()=>{ pauseForModal(); logModal.classList.add('show'); });
+    function closeLogModal(){ logModal.classList.remove('show'); if(isFirstRun){ isFirstRun=false; helpModal.classList.add('show'); } else resumeFromModal(); }
+    closeLogX.addEventListener('click',closeLogModal);
+    logModal.addEventListener('click',(e)=>{ if(e.target===logModal) closeLogModal(); });
+
+    const diffModal=document.getElementById('diffModal'), closeDiffX=document.getElementById('closeDiffX');
+    document.getElementById('restartBtn').addEventListener('click',()=>{ pauseForModal(); diffModal.classList.add('show'); });
+    closeDiffX.addEventListener('click',()=>{ diffModal.classList.remove('show'); resumeFromModal(); });
+    diffModal.addEventListener('click',(e)=>{ if(e.target===diffModal){ diffModal.classList.remove('show'); resumeFromModal(); } });
+    document.querySelectorAll('.diff-btn').forEach(btn=>{
+        btn.addEventListener('click',(e)=>{
+            const diff=e.target.dataset.diff;
+            if(diff==='custom'){ diffModal.classList.remove('show'); document.getElementById('customModal').classList.add('show'); return; }
+            if(diff==='online'){ diffModal.classList.remove('show'); document.getElementById('onlineModal').classList.add('show'); updateOnlineControls(); return; }
+            diffModal.classList.remove('show'); resumeFromModal(); initGame(diff);
+        });
+    });
+
+    const customModal=document.getElementById('customModal'), closeCustomX=document.getElementById('closeCustomX');
+    document.getElementById('customConfirm').addEventListener('click',()=>{
+        const a=parseFloat(document.getElementById('customAtk').value)||1.0;
+        const h=parseFloat(document.getElementById('customHp').value)||1.0;
+        const g=parseInt(document.getElementById('customGold').value)||200;
+        customModal.classList.remove('show'); resumeFromModal();
+        initGame('custom',{atkMult:a, hpMult:h, startGold:g});
+    });
+    closeCustomX.addEventListener('click',()=>{ customModal.classList.remove('show'); resumeFromModal(); });
+    customModal.addEventListener('click',(e)=>{ if(e.target===customModal){ customModal.classList.remove('show'); resumeFromModal(); } });
+
+    const onlineModal=document.getElementById('onlineModal'), closeOnlineX=document.getElementById('closeOnlineX');
+    document.getElementById('createOnlineRoomBtn').addEventListener('click',createOnlineRoom);
+    document.getElementById('joinOnlineRoomBtn').addEventListener('click',()=>joinOnlineRoom(document.getElementById('joinOnlineRoomId').value));
+    document.getElementById('startOnlineBtn').addEventListener('click',startOnlineMatch);
+    document.getElementById('closeNetworkBtn').addEventListener('click',closeNetwork);
+    document.getElementById('copyOnlineRoomBtn').addEventListener('click',()=>{
+        const input=document.getElementById('onlineRoomId');
+        if(!input.value) return;
+        input.select();
+        if(navigator.clipboard) navigator.clipboard.writeText(input.value).catch(()=>{});
+    });
+    closeOnlineX.addEventListener('click',()=>{ onlineModal.classList.remove('show'); resumeFromModal(); });
+    onlineModal.addEventListener('click',(e)=>{ if(e.target===onlineModal){ onlineModal.classList.remove('show'); resumeFromModal(); } });
+
+    function firstRun(){ pauseForModal(); logModal.classList.add('show'); }
+    firstRun();
+    createUnitCards();
+    requestAnimationFrame(gameLoop);
+})();
+</script>
+</body>
+</html>
